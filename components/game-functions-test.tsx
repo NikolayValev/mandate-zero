@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface GameFunctionsTestProps {
-  initialPlayerProfile?: any;
-  initialCharacterData?: any;
-  initialReputationData?: any;
+  initialPlayerProfile?: unknown;
+  initialCharacterData?: unknown;
+  initialReputationData?: unknown;
 }
 
 export function GameFunctionsTest({ 
@@ -18,9 +18,6 @@ export function GameFunctionsTest({
   initialReputationData 
 }: GameFunctionsTestProps) {
   const [gameId, setGameId] = useState("demo-game-id");
-  const [playerProfile, setPlayerProfile] = useState(initialPlayerProfile);
-  const [characterData, setCharacterData] = useState(initialCharacterData);
-  const [reputationData, setReputationData] = useState(initialReputationData);
   const [specificField, setSpecificField] = useState("reputation");
   
   // Action form state
@@ -30,7 +27,7 @@ export function GameFunctionsTest({
   const [currentTick, setCurrentTick] = useState(1);
   
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any>({});
+  const [results, setResults] = useState<Record<string, unknown>>({});
 
   const testGetPlayerProfile = async () => {
     setLoading(true);
@@ -44,10 +41,9 @@ export function GameFunctionsTest({
         }),
       });
       const data = await response.json();
-      setPlayerProfile(data.result);
       setResults(prev => ({ ...prev, playerProfile: data }));
     } catch (error) {
-      setResults(prev => ({ ...prev, playerProfile: { error: error.message } }));
+      setResults(prev => ({ ...prev, playerProfile: { error: (error as Error).message } }));
     }
     setLoading(false);
   };
@@ -64,10 +60,9 @@ export function GameFunctionsTest({
         }),
       });
       const data = await response.json();
-      setCharacterData(data.result);
       setResults(prev => ({ ...prev, characterData: data }));
     } catch (error) {
-      setResults(prev => ({ ...prev, characterData: { error: error.message } }));
+      setResults(prev => ({ ...prev, characterData: { error: (error as Error).message } }));
     }
     setLoading(false);
   };
@@ -85,10 +80,9 @@ export function GameFunctionsTest({
         }),
       });
       const data = await response.json();
-      setReputationData(data.result);
       setResults(prev => ({ ...prev, specificField: data }));
     } catch (error) {
-      setResults(prev => ({ ...prev, specificField: { error: error.message } }));
+      setResults(prev => ({ ...prev, specificField: { error: (error as Error).message } }));
     }
     setLoading(false);
   };
@@ -110,7 +104,7 @@ export function GameFunctionsTest({
       const data = await response.json();
       setResults(prev => ({ ...prev, insertAction: data }));
     } catch (error) {
-      setResults(prev => ({ ...prev, insertAction: { error: error.message } }));
+      setResults(prev => ({ ...prev, insertAction: { error: (error as Error).message } }));
     }
     setLoading(false);
   };

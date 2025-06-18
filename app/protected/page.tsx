@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { createClient, getPlayerProfile, getPlayerCharacterData, insertPlayerAction } from "@/lib/supabase/server";
+import { createClient, getPlayerProfile, getPlayerCharacterData } from "@/lib/supabase/server";
 import { InfoIcon } from "lucide-react";
 import { FetchDataSteps } from "@/components/tutorial/fetch-data-steps";
 import { GameFunctionsTest } from "@/components/game-functions-test";
@@ -20,8 +20,6 @@ export default async function ProtectedPage() {
   let characterData = null;
   let characterError = null;
   let reputationData = null;
-  let actionResult = null;
-  let actionError = null;
   
   try {
     playerProfile = await getPlayerProfile('demo-game-id');
@@ -39,24 +37,9 @@ export default async function ProtectedPage() {
   // Try to fetch specific field (reputation)
   try {
     reputationData = await getPlayerCharacterData('demo-game-id', 'reputation');
-  } catch (err) {
+  } catch {
     // Ignore specific field errors if main character data also failed
   }
-
-  // Example: Insert a demo action (commented out to avoid spam)
-  // try {
-  //   if (playerProfile?.id) {
-  //     actionResult = await insertPlayerAction(
-  //       'demo-game-id',
-  //       playerProfile.id,
-  //       1, // current tick
-  //       'bribe',
-  //       { target_player_id: 'xyz', amount: 5000 }
-  //     );
-  //   }
-  // } catch (err) {
-  //   actionError = err instanceof Error ? err.message : 'Failed to insert action';
-  // }
 
   return (
     <div className="flex-1 w-full flex flex-col gap-12">
@@ -95,9 +78,9 @@ export default async function ProtectedPage() {
             <div className="text-sm text-muted-foreground">
               <p>To test this feature:</p>
               <ol className="list-decimal list-inside mt-2 space-y-1">
-                <li>Create a 'players' table in your Supabase database</li>
+                <li>Create a &apos;players&apos; table in your Supabase database</li>
                 <li>Add columns: user_id (uuid), game_id (text), and any character data you want</li>
-                <li>Insert a row with your user ID and game_id='demo-game-id'</li>
+                <li>Insert a row with your user ID and game_id=&apos;demo-game-id&apos;</li>
                 <li>Refresh this page to see your player profile!</li>
               </ol>
             </div>
@@ -132,7 +115,7 @@ export default async function ProtectedPage() {
           <div className="w-full">
             <div className="bg-yellow-50 dark:bg-yellow-950 text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center mb-3">
               <InfoIcon size="16" strokeWidth={2} />
-              {characterError || "No character data found. Add a 'character_data' JSON column to your players table!"}
+              {characterError || "No character data found. Add a &apos;character_data&apos; JSON column to your players table!"}
             </div>
             <div className="text-sm text-muted-foreground">
               <p>Character data features:</p>
