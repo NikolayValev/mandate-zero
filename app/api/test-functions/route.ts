@@ -86,7 +86,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('API Error:', error);
+    // Log error in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.error('API Error:', error);
+    }
     return NextResponse.json(
       { 
         success: false, 
