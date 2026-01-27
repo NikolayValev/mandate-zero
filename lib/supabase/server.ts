@@ -1,5 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { 
+  isDemoMode, 
+  demoUser, 
+  getDemoPlayerProfile, 
+  getDemoCharacterData, 
+  insertDemoAction 
+} from "@/lib/demo-data";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -34,6 +41,11 @@ export async function createClient() {
  * @returns Player profile data or null if not found
  */
 export async function getPlayerProfile(gameId: string) {
+  // Demo mode fallback
+  if (isDemoMode()) {
+    return getDemoPlayerProfile(gameId);
+  }
+
   const supabase = await createClient();
 
   // Get the current user
@@ -68,6 +80,11 @@ export async function getPlayerProfile(gameId: string) {
  * @returns Character data or specific field value
  */
 export async function getPlayerCharacterData(gameId: string, specificField?: string) {
+  // Demo mode fallback
+  if (isDemoMode()) {
+    return getDemoCharacterData(gameId, specificField);
+  }
+
   const supabase = await createClient();
   
   // Get the current user
@@ -116,6 +133,11 @@ export async function insertPlayerAction(
   actionType: string, 
   payload: Record<string, unknown>
 ) {
+  // Demo mode fallback
+  if (isDemoMode()) {
+    return insertDemoAction(gameId, playerId, currentTick, actionType, payload);
+  }
+
   const supabase = await createClient();
   
   // Get the current user for authentication
@@ -144,4 +166,16 @@ export async function insertPlayerAction(
   }
 
   return { success: true, message: 'Action inserted successfully' };
+}
+
+/**
+ * Get user - with demo mode support
+ */
+export async function getUser() {
+  if (isDemoMode()) {
+    return { data: { user: demoUser }, error: null };
+  }
+
+  const supabase = await createClient();
+  return supabase.auth.getUser();
 }

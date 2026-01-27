@@ -1,43 +1,34 @@
-import { NextLogo } from "./next-logo";
-import { SupabaseLogo } from "./supabase-logo";
+import Link from "next/link";
 
 export function Hero() {
   return (
     <div className="flex flex-col gap-16 items-center">
-      <div className="flex gap-8 justify-center items-center">
-        <a
-          href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <SupabaseLogo />
-        </a>
-        <span className="border-l rotate-45 h-6" />
-        <a href="https://nextjs.org/" target="_blank" rel="noreferrer">
-          <NextLogo />
-        </a>
+      <div className="flex flex-col gap-8 items-center">
+        <div className="text-6xl">🎯</div>
+        <h1 className="text-4xl lg:text-5xl font-bold text-center">
+          Mandate-Zero
+        </h1>
       </div>
-      <h1 className="sr-only">Supabase and Next.js Starter Template</h1>
-      <p className="text-3xl lg:text-4xl !leading-tight mx-auto max-w-xl text-center">
-        The fastest way to build apps with{" "}
-        <a
-          href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-          target="_blank"
-          className="font-bold hover:underline"
-          rel="noreferrer"
-        >
-          Supabase
-        </a>{" "}
-        and{" "}
-        <a
-          href="https://nextjs.org/"
-          target="_blank"
-          className="font-bold hover:underline"
-          rel="noreferrer"
-        >
-          Next.js
-        </a>
+      <p className="text-xl lg:text-2xl !leading-tight mx-auto max-w-2xl text-center text-muted-foreground">
+        A strategic influence game where players compete for control through reputation, 
+        tactical decisions, and diplomatic maneuvering.
       </p>
+      
+      <div className="flex gap-4">
+        <Link 
+          href="/protected" 
+          className="px-6 py-3 bg-foreground text-background rounded-lg font-semibold hover:bg-foreground/90 transition-colors"
+        >
+          Enter Game
+        </Link>
+        <Link 
+          href="/about" 
+          className="px-6 py-3 border border-foreground/20 rounded-lg font-semibold hover:bg-foreground/5 transition-colors"
+        >
+          Learn More
+        </Link>
+      </div>
+      
       <div className="w-full p-[1px] bg-gradient-to-r from-transparent via-foreground/10 to-transparent my-8" />
     </div>
   );

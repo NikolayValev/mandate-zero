@@ -1,16 +1,20 @@
 import { redirect } from "next/navigation";
 
-import { createClient, getPlayerProfile, getPlayerCharacterData } from "@/lib/supabase/server";
+import { getUser, getPlayerProfile, getPlayerCharacterData } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/demo-data";
 import { InfoIcon } from "lucide-react";
 import { FetchDataSteps } from "@/components/tutorial/fetch-data-steps";
 import { GameFunctionsTest } from "@/components/game-functions-test";
+import { EnvStatus } from "@/components/env-status";
 
 export default async function ProtectedPage() {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await getUser();
+  
   if (error || !data?.user) {
-    redirect("/auth/login");
+    // In demo mode, we still show the page but with a notice
+    if (!isDemoMode()) {
+      redirect("/auth/login");
+    }
   }
 
   // Example: Try to fetch player profile for a demo game
@@ -43,6 +47,7 @@ export default async function ProtectedPage() {
 
   return (
     <div className="flex-1 w-full flex flex-col gap-12">
+      <EnvStatus />
       <div className="w-full">
         <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
           <InfoIcon size="16" strokeWidth={2} />
