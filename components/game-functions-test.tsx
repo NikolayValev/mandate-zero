@@ -13,9 +13,6 @@ interface GameFunctionsTestProps {
 }
 
 export function GameFunctionsTest({ 
-  initialPlayerProfile, 
-  initialCharacterData, 
-  initialReputationData 
 }: GameFunctionsTestProps) {
   const [gameId, setGameId] = useState("demo-game-id");
   const [specificField, setSpecificField] = useState("reputation");
@@ -27,7 +24,13 @@ export function GameFunctionsTest({
   const [currentTick, setCurrentTick] = useState(1);
   
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<Record<string, unknown>>({});
+  const [results, setResults] = useState<Record<string, {
+    success?: boolean;
+    message?: string;
+    result?: unknown;
+    error?: string;
+    timestamp?: string;
+  }>>({});
 
   const testGetPlayerProfile = async () => {
     setLoading(true);

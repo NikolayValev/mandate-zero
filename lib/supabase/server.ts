@@ -114,7 +114,7 @@ export async function insertPlayerAction(
   playerId: string, 
   currentTick: number, 
   actionType: string, 
-  payload: Record<string, any>
+  payload: Record<string, unknown>
 ) {
   const supabase = await createClient();
   

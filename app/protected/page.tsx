@@ -94,7 +94,7 @@ export default async function ProtectedPage() {
           <div className="w-full space-y-4">
             <div className="bg-blue-50 dark:bg-blue-950 text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
               <InfoIcon size="16" strokeWidth={2} />
-              Character data loaded! This shows your character's attributes and stats.
+              Character data loaded! This shows your character&apos;s attributes and stats.
             </div>
             <div>
               <h3 className="font-semibold mb-2">Full Character Data:</h3>
