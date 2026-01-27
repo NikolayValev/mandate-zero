@@ -85,7 +85,9 @@ export function getDemoCharacterData(gameId: string, specificField?: string) {
   if (!profile) return null;
   
   if (specificField) {
-    return profile.character_data[specificField as keyof typeof profile.character_data];
+    // Safely access the field with runtime check
+    const characterData = profile.character_data as Record<string, unknown>;
+    return characterData[specificField];
   }
   
   return profile.character_data;
