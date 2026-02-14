@@ -54,7 +54,6 @@ import type {
   ActorKey,
   ActorEffects,
   CausalityEntry,
-  CausalityStep,
   CoreSystemKey,
   Delta,
   DemoSeed,
@@ -78,10 +77,16 @@ function isCausalityEntryArray(value: unknown): value is CausalityEntry[] {
       return (
         isRecord(entry) &&
         typeof entry.id === "string" &&
-        typeof entry.title === "string" &&
         typeof entry.turn === "number" &&
-        Array.isArray(entry.steps) &&
-        Array.isArray(entry.affectedRegions)
+        typeof entry.phase === "string" &&
+        typeof entry.actionId === "string" &&
+        typeof entry.actionLabel === "string" &&
+        typeof entry.crisisId === "string" &&
+        typeof entry.crisisLabel === "string" &&
+        isRecord(entry.immediateDeltas) &&
+        Array.isArray(entry.delayedEnqueued) &&
+        Array.isArray(entry.thresholdsTriggered) &&
+        Array.isArray(entry.regionImpacts)
       );
     })
   );
@@ -226,17 +231,11 @@ export function MandateZeroMvp() {
   };
 
   const appendCausalityEntry = (
-    title: string,
-    turn: number,
-    affectedRegions: RegionKey[],
-    steps: CausalityStep[],
+    entryInput: Omit<CausalityEntry, "id">,
   ) => {
     const entry: CausalityEntry = {
-      id: `${turn}-${title}-${Date.now()}`,
-      turn,
-      title,
-      affectedRegions,
-      steps,
+      id: `${entryInput.turn}-${entryInput.phase}-${entryInput.actionId}-${Date.now()}`,
+      ...entryInput,
     };
     setCausalityHistory((prev) => [entry, ...prev].slice(0, 18));
   };
@@ -276,9 +275,15 @@ export function MandateZeroMvp() {
             const fallbackEntries: CausalityEntry[] = parsedHistory.map((entry, index) => ({
               id: `legacy-${index}`,
               turn: 0,
-              title: entry,
-              affectedRegions: [],
-              steps: [{ label: "Event", detail: entry }],
+              phase: "fallout",
+              actionId: `legacy-${index}`,
+              actionLabel: "Legacy Entry",
+              crisisId: "legacy",
+              crisisLabel: "Imported history",
+              immediateDeltas: {},
+              delayedEnqueued: [entry],
+              thresholdsTriggered: [],
+              regionImpacts: [],
             }));
             setCausalityHistory(fallbackEntries);
           }
@@ -390,12 +395,18 @@ export function MandateZeroMvp() {
       lastActorPressureDelta: actorApplication.pressureDelta,
     }));
     setHistory((prev) => [`Doctrine selected -> ${selected.title}`, ...prev].slice(0, 18));
-    appendCausalityEntry(`Doctrine -> ${selected.title}`, game.turn, [], [
-      {
-        label: "Immediate",
-        detail: summarizeDelta(selected.startEffects.statEffects ?? {}, STAT_META) || "no stat shift",
-      },
-    ]);
+    appendCausalityEntry({
+      turn: game.turn,
+      phase: "decision",
+      actionId: selected.id,
+      actionLabel: `Doctrine: ${selected.title}`,
+      crisisId: game.scenarioId,
+      crisisLabel: scenario.title,
+      immediateDeltas: selected.startEffects.statEffects ?? {},
+      delayedEnqueued: [],
+      thresholdsTriggered: [],
+      regionImpacts: [],
+    });
   };
 
   const enactPolicy = (policy: PolicyCommitment) => {
@@ -436,10 +447,18 @@ export function MandateZeroMvp() {
     }));
 
     setHistory((prev) => [`Policy enacted -> ${policy.title}`, ...prev].slice(0, 18));
-    appendCausalityEntry(`Policy -> ${policy.title}`, game.turn, [], [
-      { label: "Immediate", detail: summarizeDelta(policy.immediate.statEffects ?? {}, STAT_META) || "none" },
-      { label: "Passive", detail: summarizeDelta(policy.passive.statEffects ?? {}, STAT_META) || "none" },
-    ]);
+    appendCausalityEntry({
+      turn: game.turn,
+      phase: "decision",
+      actionId: policy.id,
+      actionLabel: `Policy: ${policy.title}`,
+      crisisId: game.scenarioId,
+      crisisLabel: scenario.title,
+      immediateDeltas: policy.immediate.statEffects ?? {},
+      delayedEnqueued: [],
+      thresholdsTriggered: [],
+      regionImpacts: [],
+    });
   };
 
   const getAdjustedActionCost = (action: StrategicAction) =>
@@ -565,16 +584,21 @@ export function MandateZeroMvp() {
       const line = `Strategic action -> ${action.title}${statSummary ? ` (${statSummary})` : ""}${queueSummary}`;
       return [line, ...prev].slice(0, 18);
     });
-    appendCausalityEntry(`Action -> ${action.title}`, game.turn, [], [
-      { label: "Immediate", detail: statSummary || "no stat shift" },
-      {
-        label: "Delayed",
-        detail:
-          queuedEffects.length > 0
-            ? queuedEffects.map((effect) => `${effect.source} (T${effect.turnToApply})`).join(", ")
-            : "none",
-      },
-    ]);
+    appendCausalityEntry({
+      turn: game.turn,
+      phase: "decision",
+      actionId: action.id,
+      actionLabel: `Action: ${action.title}`,
+      crisisId: game.scenarioId,
+      crisisLabel: scenario.title,
+      immediateDeltas: rolledStats.effects,
+      delayedEnqueued:
+        queuedEffects.length > 0
+          ? queuedEffects.map((effect) => `${effect.source} (T${effect.turnToApply})`)
+          : [],
+      thresholdsTriggered: [],
+      regionImpacts: [],
+    });
   };
 
   const resolveCrisisOption = (option: ScenarioOption) => {
@@ -801,32 +825,21 @@ export function MandateZeroMvp() {
     const logLine = `${scenario.title} -> ${option.title}${optionSummary ? ` (${optionSummary})` : ""}${queueLine}${chainLine}`;
     setHistory((prev) => [logLine, ...prev].slice(0, 18));
 
-    appendCausalityEntry(
-      `${scenario.title} -> ${option.title}`,
-      game.turn,
-      regionSimulation.impactedRegions,
-      [
-        {
-          label: "Immediate Deltas",
-          detail: summarizeDelta(rolledOptionStats.effects, STAT_META) || "none",
-        },
-        {
-          label: "Delayed Effects Enqueued",
-          detail:
-            queuedDelayed.queued.length > 0
-              ? queuedDelayed.queued.map((entry) => `${entry.source} (T${entry.turnToApply})`).join(", ")
-              : "none",
-        },
-        {
-          label: "Thresholds Triggered",
-          detail: thresholdTriggers.logs.join(" | ") || "none",
-        },
-        {
-          label: "Region Impacts",
-          detail: regionSimulation.summary,
-        },
-      ],
-    );
+    appendCausalityEntry({
+      turn: game.turn,
+      phase: "resolution",
+      actionId: option.id,
+      actionLabel: option.title,
+      crisisId: scenario.id,
+      crisisLabel: scenario.title,
+      immediateDeltas: rolledOptionStats.effects,
+      delayedEnqueued:
+        queuedDelayed.queued.length > 0
+          ? queuedDelayed.queued.map((entry) => `${entry.source} (T${entry.turnToApply})`)
+          : [],
+      thresholdsTriggered: thresholdTriggers.logs,
+      regionImpacts: regionSimulation.impactedRegions,
+    });
   };
 
   const addCustomSeed = () => {
@@ -876,7 +889,8 @@ export function MandateZeroMvp() {
 
   const selectCausalityEntry = (entry: CausalityEntry) => {
     setSelectedCausalityId(entry.id);
-    setHighlightedRegions(entry.affectedRegions ?? []);
+    setHighlightedRegions(entry.regionImpacts);
+    setHighlightedSystems(statKeysFromDelta(entry.immediateDeltas));
   };
 
   return (

@@ -8,6 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { REGION_META, STAT_META } from "./data";
+import { summarizeDelta } from "./engine";
 import type { CausalityEntry } from "./types";
 
 interface SimulationLogCardProps {
@@ -46,14 +48,30 @@ export function SimulationLogCard({ entries, selectedEntryId, onSelectEntry }: S
                   onClick={() => onSelectEntry(entry)}
                 >
                   <div className="w-full">
-                    <p className="font-medium">
-                      T{entry.turn}: {entry.title}
+                    <p className="font-medium">Turn {entry.turn}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Action: {entry.actionLabel}
                     </p>
-                    {(entry.steps ?? []).map((step) => (
-                      <p key={`${entry.id}-${step.label}`} className="text-xs text-muted-foreground">
-                        {step.label}: {step.detail}
-                      </p>
-                    ))}
+                    <p className="text-xs text-muted-foreground">
+                      Immediate: {summarizeDelta(entry.immediateDeltas, STAT_META) || "none"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Delayed: {entry.delayedEnqueued.join(", ") || "none"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Triggered: {entry.thresholdsTriggered.join(" | ") || "none"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Affected regions:{" "}
+                      {entry.regionImpacts.length > 0
+                        ? entry.regionImpacts
+                            .map(
+                              (region) =>
+                                REGION_META.find((meta) => meta.key === region)?.label ?? region,
+                            )
+                            .join(", ")
+                        : "none"}
+                    </p>
                   </div>
                 </Button>
               </li>

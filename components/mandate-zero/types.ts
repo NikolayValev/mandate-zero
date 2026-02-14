@@ -171,15 +171,15 @@ export interface CausalityStep {
 export interface CausalityEntry {
   id: string;
   turn: number;
-  phase?: TurnStage;
-  actionId?: string;
-  actionLabel?: string;
-  crisisId?: string;
-  crisisLabel?: string;
-  immediateDeltas?: Delta<StatKey>;
-  delayedEnqueued?: string[];
-  thresholdsTriggered?: string[];
-  regionImpacts?: RegionKey[];
+  phase: TurnStage;
+  actionId: string;
+  actionLabel: string;
+  crisisId: string;
+  crisisLabel: string;
+  immediateDeltas: Delta<StatKey>;
+  delayedEnqueued: string[];
+  thresholdsTriggered: string[];
+  regionImpacts: RegionKey[];
   title?: string;
   affectedRegions?: RegionKey[];
   steps?: CausalityStep[];
