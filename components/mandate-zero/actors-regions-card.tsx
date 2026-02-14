@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { ACTOR_META, REGION_META } from "./data";
 import { getScenario, regionClass } from "./engine";
-import { REGION_ACTOR_FOCUS, RegionTheaterMap } from "./region-theater-map";
+import { RegionTheaterMap } from "./region-theater-map";
 import type { ActorKey, GameState, RegionKey } from "./types";
 
 const StateMeshScene = dynamic(
@@ -30,6 +30,19 @@ interface ActorsRegionsCardProps {
   game: GameState;
   highlightedRegions: RegionKey[];
   highlightedActors: ActorKey[];
+}
+
+function stressBand(stress: number) {
+  if (stress >= 85) {
+    return "Critical";
+  }
+  if (stress >= 70) {
+    return "High";
+  }
+  if (stress >= 45) {
+    return "Elevated";
+  }
+  return "Contained";
 }
 
 export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors }: ActorsRegionsCardProps) {
@@ -116,6 +129,7 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
                 </div>
                 <div className="space-y-2">
                   <div>
+                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Loyalty</p>
                     <div className="h-4 rounded-full bg-muted/70">
                       <div
                         className="flex h-4 items-center justify-end rounded-full bg-emerald-500 px-2 text-[10px] font-semibold text-emerald-50 transition-all"
@@ -126,6 +140,7 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
                     </div>
                   </div>
                   <div>
+                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Pressure</p>
                     <div className="h-4 rounded-full bg-muted/70">
                       <div
                         className="flex h-4 items-center justify-end rounded-full bg-rose-500 px-2 text-[10px] font-semibold text-rose-50 transition-all"
@@ -144,8 +159,6 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
         <div className="grid grid-cols-2 gap-2">
           {REGION_META.map((region) => {
             const stress = game.regions[region.key];
-            const actorKey = REGION_ACTOR_FOCUS[region.key];
-            const actor = game.actors[actorKey];
             return (
               <div
                 key={region.key}
@@ -162,7 +175,7 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
                   </Badge>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  {actorKey} influence: {actor.pressure}% / {actor.loyalty}%
+                  Stress band: {stressBand(stress)}
                 </div>
               </div>
             );

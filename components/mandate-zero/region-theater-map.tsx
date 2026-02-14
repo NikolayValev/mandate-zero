@@ -179,7 +179,7 @@ export function RegionTheaterMap({
                   <p className="text-[10px] font-semibold uppercase tracking-wide">{layout.label}</p>
                   <p className="text-xs">Stress {stress}</p>
                   <p className="text-[10px] text-white/90">
-                    {pressure}% / {loyalty}%
+                    Pressure {pressure}% | Loyalty {loyalty}%
                   </p>
                   {stressDelta !== 0 ? (
                     <p className="mt-1 text-[10px] text-white/90">
@@ -227,6 +227,7 @@ export function RegionTheaterMap({
 
         <div className="mt-2 space-y-2">
           <div>
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-white/70">Pressure</p>
             <div className="h-4 rounded-full bg-white/20">
               <div
                 className="flex h-4 items-center justify-end rounded-full bg-rose-400 px-2 text-[10px] font-semibold text-rose-950 transition-all"
@@ -237,6 +238,7 @@ export function RegionTheaterMap({
             </div>
           </div>
           <div>
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-white/70">Loyalty</p>
             <div className="h-4 rounded-full bg-white/20">
               <div
                 className="flex h-4 items-center justify-end rounded-full bg-emerald-400 px-2 text-[10px] font-semibold text-emerald-950 transition-all"
