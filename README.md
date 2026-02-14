@@ -79,9 +79,13 @@ GitHub Actions workflow:
 - runs on push/PR to `main`
 - gates on: install, typecheck, lint, unit tests, build
 
-## Optional Supabase Flow
+## Optional Supabase Sandbox
 
-The repo also includes an authenticated Supabase example flow on `/protected`.
+The repo also includes an authenticated Supabase sandbox on `/protected`.
+It currently focuses on:
+- authenticated user session validation
+- automatic player profile bootstrap (`ensurePlayerProfile`)
+- character data reads (`getPlayerCharacterData`)
 
 If you want that flow enabled:
 
@@ -90,6 +94,8 @@ If you want that flow enabled:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 3. Run SQL from `supabase/schema.sql` in Supabase SQL Editor
+
+Note: the legacy tutorial UI and `/api/test-functions` route were removed during cleanup.
 
 ## Production Readiness Checklist
 

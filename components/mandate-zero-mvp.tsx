@@ -12,6 +12,7 @@ import {
 import {
   ActorsRegionsCard,
 } from "@/components/mandate-zero/actors-regions-card";
+import { DemoSeedsCard } from "@/components/mandate-zero/demo-seeds-card";
 import { MainStageCard } from "@/components/mandate-zero/main-stage-card";
 import { PoliciesCard } from "@/components/mandate-zero/policies-card";
 import { SimulationLogCard } from "@/components/mandate-zero/simulation-log-card";
@@ -478,40 +479,47 @@ export function MandateZeroMvp() {
   ].filter((warning): warning is string => Boolean(warning));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] xl:grid-cols-[1.55fr_1fr]">
-      <MainStageCard
-        game={game}
-        scenario={scenario}
-        intelProfile={intelProfile}
-        escalationClock={escalationClock}
-        hotRegions={hotRegions}
-        criticalRegions={criticalRegions}
-        canPlay={canPlay}
-        seedInput={seedInput}
-        onSeedInputChange={setSeedInput}
-        onStartRunWithSeed={startRunWithSeed}
-        onClearLocalData={clearLocalData}
-        newSeedName={newSeedName}
-        onNewSeedNameChange={setNewSeedName}
-        newSeedValue={newSeedValue}
-        onNewSeedValueChange={setNewSeedValue}
-        onAddCustomSeed={addCustomSeed}
-        seedMessage={seedMessage}
-        allSeeds={allSeeds}
-        onRemoveCustomSeed={removeCustomSeed}
-        onChooseDoctrine={chooseDoctrine}
-        onResolveCrisisOption={resolveCrisisOption}
-      />
-
-      <div className="space-y-6">
+    <div className="grid gap-6 lg:grid-cols-[0.95fr_1.5fr_1fr]">
+      <div className="order-2 space-y-6 lg:order-1">
         <PoliciesCard game={game} canPlay={canPlay} onEnactPolicy={enactPolicy} />
         <StrategicActionsCard
           getActionDisabledReason={getActionDisabledReason}
           onTriggerStrategicAction={triggerStrategicAction}
         />
+        <SimulationLogCard history={history} />
+      </div>
+
+      <div className="order-1 lg:order-2">
+        <MainStageCard
+          game={game}
+          scenario={scenario}
+          intelProfile={intelProfile}
+          escalationClock={escalationClock}
+          hotRegions={hotRegions}
+          criticalRegions={criticalRegions}
+          canPlay={canPlay}
+          onChooseDoctrine={chooseDoctrine}
+          onResolveCrisisOption={resolveCrisisOption}
+        />
+      </div>
+
+      <div className="order-3 space-y-6">
+        <DemoSeedsCard
+          seedInput={seedInput}
+          onSeedInputChange={setSeedInput}
+          onStartRunWithSeed={startRunWithSeed}
+          onClearLocalData={clearLocalData}
+          newSeedName={newSeedName}
+          onNewSeedNameChange={setNewSeedName}
+          newSeedValue={newSeedValue}
+          onNewSeedValueChange={setNewSeedValue}
+          onAddCustomSeed={addCustomSeed}
+          seedMessage={seedMessage}
+          allSeeds={allSeeds}
+          onRemoveCustomSeed={removeCustomSeed}
+        />
         <SystemStateCard game={game} warnings={warnings} />
         <ActorsRegionsCard game={game} />
-        <SimulationLogCard history={history} />
       </div>
     </div>
   );

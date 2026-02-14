@@ -1,9 +1,6 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -11,10 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { DEFAULT_SEED, DOCTRINES } from "./data";
+import { DOCTRINES } from "./data";
 import { describeEstimatedImpact, riskVariant } from "./engine";
 import type {
-  DemoSeed,
   DoctrineId,
   GameState,
   IntelProfile,
@@ -30,18 +26,6 @@ interface MainStageCardProps {
   hotRegions: number;
   criticalRegions: number;
   canPlay: boolean;
-  seedInput: string;
-  onSeedInputChange: (value: string) => void;
-  onStartRunWithSeed: (seedValue: string) => void;
-  onClearLocalData: () => void;
-  newSeedName: string;
-  onNewSeedNameChange: (value: string) => void;
-  newSeedValue: string;
-  onNewSeedValueChange: (value: string) => void;
-  onAddCustomSeed: () => void;
-  seedMessage: string | null;
-  allSeeds: DemoSeed[];
-  onRemoveCustomSeed: (seedId: string) => void;
   onChooseDoctrine: (doctrineId: DoctrineId) => void;
   onResolveCrisisOption: (option: ScenarioOption) => void;
 }
@@ -71,18 +55,6 @@ export function MainStageCard({
   hotRegions,
   criticalRegions,
   canPlay,
-  seedInput,
-  onSeedInputChange,
-  onStartRunWithSeed,
-  onClearLocalData,
-  newSeedName,
-  onNewSeedNameChange,
-  newSeedValue,
-  onNewSeedValueChange,
-  onAddCustomSeed,
-  seedMessage,
-  allSeeds,
-  onRemoveCustomSeed,
   onChooseDoctrine,
   onResolveCrisisOption,
 }: MainStageCardProps) {
@@ -96,7 +68,7 @@ export function MainStageCard({
               Turn {Math.min(game.turn, game.maxTurns)} of {game.maxTurns} | AP {" "}
               {game.actionPoints}/{game.maxActionPoints}
             </CardDescription>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
               Seed: {game.seedText} | Confidence: {intelProfile.confidence}
             </p>
           </div>
@@ -122,7 +94,9 @@ export function MainStageCard({
             </div>
           </div>
           <h3 className="mt-2 text-lg font-semibold">{scenario.title}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{scenario.description}</p>
+          <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
+            {scenario.description}
+          </p>
           <p className="mt-2 text-xs text-muted-foreground">
             Spread preview: {hotRegions} hot regions, {criticalRegions} critical.
           </p>
@@ -142,7 +116,9 @@ export function MainStageCard({
                   onClick={() => onChooseDoctrine(option.id)}
                 >
                   <p className="font-medium">{option.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{option.description}</p>
+                  <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
+                    {option.description}
+                  </p>
                 </button>
               ))}
             </div>
@@ -162,110 +138,28 @@ export function MainStageCard({
                 <p className="font-medium">{option.title}</p>
                 <div className="flex gap-2">
                   <Badge variant={riskVariant(option.risk)}>Risk {option.risk}</Badge>
-                  <Badge variant="outline">{intelProfile.confidence} confidence</Badge>
+                  <Badge variant="outline" className="hidden sm:inline-flex">
+                    {intelProfile.confidence} confidence
+                  </Badge>
                 </div>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">{option.description}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
+                {option.description}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground sm:hidden">
+                {describeEstimatedImpact(option, intelProfile)}
+              </p>
+              <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
                 Estimated impact: {describeEstimatedImpact(option, intelProfile)}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
                 Faction reaction: {option.factionReaction}
               </p>
             </button>
           ))}
         </div>
 
-        <details className="group rounded-lg border p-4">
-          <summary className="flex cursor-pointer list-none items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Demo Seeds</p>
-              <p className="text-xs text-muted-foreground">{allSeeds.length} scenarios</p>
-            </div>
-            <span className="text-xs text-muted-foreground group-open:hidden">Expand</span>
-            <span className="hidden text-xs text-muted-foreground group-open:inline">
-              Collapse
-            </span>
-          </summary>
-
-          <div className="mt-4 space-y-4">
-            <div className="grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-end">
-              <div>
-                <Label htmlFor="seed-input">Current Seed</Label>
-                <Input
-                  id="seed-input"
-                  value={seedInput}
-                  onChange={(event) => onSeedInputChange(event.target.value)}
-                  placeholder={DEFAULT_SEED}
-                />
-              </div>
-              <Button onClick={() => onStartRunWithSeed(seedInput)} variant="outline">
-                Restart Seed
-              </Button>
-              <Button onClick={onClearLocalData} variant="destructive">
-                Clear Local Data
-              </Button>
-            </div>
-
-            <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto] md:items-end">
-              <div>
-                <Label htmlFor="new-seed-name">Seed Name</Label>
-                <Input
-                  id="new-seed-name"
-                  value={newSeedName}
-                  onChange={(event) => onNewSeedNameChange(event.target.value)}
-                  placeholder="Investor Panic Demo"
-                />
-              </div>
-              <div>
-                <Label htmlFor="new-seed-value">Seed Value</Label>
-                <Input
-                  id="new-seed-value"
-                  value={newSeedValue}
-                  onChange={(event) => onNewSeedValueChange(event.target.value)}
-                  placeholder={seedInput}
-                />
-              </div>
-              <Button onClick={onAddCustomSeed}>Add</Button>
-            </div>
-
-            {seedMessage ? <p className="text-xs text-muted-foreground">{seedMessage}</p> : null}
-
-            <div className="space-y-2">
-              {allSeeds.map((seed) => (
-                <div
-                  key={seed.id}
-                  className="flex items-center justify-between gap-2 rounded-md border p-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{seed.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{seed.value}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onStartRunWithSeed(seed.value)}
-                    >
-                      Load
-                    </Button>
-                    {seed.custom ? (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => onRemoveCustomSeed(seed.id)}
-                      >
-                        Remove
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </details>
-
-        <p className="text-sm text-muted-foreground">{game.message}</p>
+        <p className="text-sm text-muted-foreground sm:text-sm">{game.message}</p>
       </CardContent>
     </Card>
   );

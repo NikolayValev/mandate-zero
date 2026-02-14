@@ -21,7 +21,7 @@ export function SystemStateCard({ game, warnings }: SystemStateCardProps) {
     <Card>
       <CardHeader>
         <CardTitle>System State</CardTitle>
-        <CardDescription>
+        <CardDescription className="hidden sm:block">
           Interacting systems push back. Trends show last simulation change.
         </CardDescription>
       </CardHeader>

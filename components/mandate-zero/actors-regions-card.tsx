@@ -22,7 +22,7 @@ export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
     <Card>
       <CardHeader>
         <CardTitle>Actors and Regions</CardTitle>
-        <CardDescription>
+        <CardDescription className="hidden sm:block">
           Loyalty and pressure shape region severity. Spatial stress now renders in a 3D theater.
         </CardDescription>
       </CardHeader>
