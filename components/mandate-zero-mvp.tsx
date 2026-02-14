@@ -47,6 +47,7 @@ import {
   randomInt,
   reduceCooldowns,
   rollUncertainStatEffects,
+  sampleActionOutcome,
   simulateRegions,
   snapshotCoreSystems,
   summarizeDelta,
@@ -427,9 +428,7 @@ export function MandateZeroMvp() {
     }
 
     let rngState = game.rngState;
-    const uncertainty = Math.max(1, outcomeVariance - 1);
-    const rolledStats = rollUncertainStatEffects(action.effects.statEffects ?? {}, uncertainty, rngState);
-    rngState = rolledStats.rngState;
+    const rolledStats = sampleActionOutcome(game, action, game.scenarioId);
 
     const resourceCostDelta: Delta<ResourceKey> = {};
     for (const [key, cost] of Object.entries(action.resourceCost ?? {}) as Array<[ResourceKey, number]>) {
@@ -828,7 +827,7 @@ export function MandateZeroMvp() {
         <StrategicActionsCard
           getActionDisabledReason={getActionDisabledReason}
           getActionPointCost={getAdjustedActionCost}
-          outcomeVariance={outcomeVariance}
+          getActionOutcomeEstimate={(action) => estimateActionOutcome(game, action, game.scenarioId)}
           upcomingEffects={upcomingEffects}
           onTriggerStrategicAction={triggerStrategicAction}
         />

@@ -9,14 +9,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { RESOURCE_META, STAT_META, STRATEGIC_ACTIONS } from "./data";
-import { confidenceBand, riskVariant, summarizeDelta } from "./engine";
-import type { QueuedEffect, StrategicAction } from "./types";
+import { STAT_META, STRATEGIC_ACTIONS } from "./data";
+import { riskVariant } from "./engine";
+import type { OutcomeEstimate, QueuedEffect, StrategicAction } from "./types";
 
 interface StrategicActionsCardProps {
   getActionDisabledReason: (action: StrategicAction) => string | null;
   getActionPointCost: (action: StrategicAction) => number;
-  outcomeVariance: number;
+  getActionOutcomeEstimate: (action: StrategicAction) => OutcomeEstimate[];
   upcomingEffects: QueuedEffect[];
   onTriggerStrategicAction: (action: StrategicAction) => void;
 }
@@ -24,7 +24,7 @@ interface StrategicActionsCardProps {
 export function StrategicActionsCard({
   getActionDisabledReason,
   getActionPointCost,
-  outcomeVariance,
+  getActionOutcomeEstimate,
   upcomingEffects,
   onTriggerStrategicAction,
 }: StrategicActionsCardProps) {
@@ -46,20 +46,23 @@ export function StrategicActionsCard({
                 <p className="font-medium">{action.title}</p>
                 <Badge variant={riskVariant(action.risk)}>Risk {action.risk}</Badge>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{action.description}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Situation: {action.description}</p>
+              {action.riskHint ? (
+                <p className="mt-1 text-xs text-muted-foreground">Tension: {action.riskHint}</p>
+              ) : null}
               <p className="mt-1 text-xs text-muted-foreground">
                 AP {apCost}, cooldown {action.cooldown}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Confidence band: {confidenceBand(outcomeVariance)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Predicted stats: {summarizeDelta(action.effects.statEffects ?? {}, STAT_META) || "none"}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Predicted resources:{" "}
-                {summarizeDelta(action.effects.resourceEffects ?? {}, RESOURCE_META) || "none"}
-              </p>
+              {(getActionOutcomeEstimate(action) ?? []).slice(0, 4).map((estimate) => {
+                const statLabel = STAT_META.find((entry) => entry.key === estimate.system)?.label ?? estimate.system;
+                const minLabel = estimate.min > 0 ? `+${estimate.min}` : `${estimate.min}`;
+                const maxLabel = estimate.max > 0 ? `+${estimate.max}` : `${estimate.max}`;
+                return (
+                  <p key={`${action.id}-${estimate.system}`} className="mt-1 text-xs text-muted-foreground">
+                    {statLabel}: {minLabel} to {maxLabel} ({estimate.confidence})
+                  </p>
+                );
+              })}
               {upcomingEffects.length > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
                   Queued fallout:{" "}
