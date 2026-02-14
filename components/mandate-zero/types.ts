@@ -1,4 +1,5 @@
 export type StatKey = "stability" | "treasury" | "influence" | "security" | "trust";
+export type CoreSystemKey = StatKey | "pressure";
 export type ResourceKey = "intel" | "supplies" | "capital";
 export type ActorKey = "banks" | "military" | "media" | "public";
 export type RegionKey = "north" | "south" | "capital" | "industry" | "border" | "coast";
@@ -12,6 +13,9 @@ export type PolicyId =
   | "central-bank-authority"
   | "civic-autonomy-charter";
 export type Delta<T extends string> = Partial<Record<T, number>>;
+export type TierId = "critical" | "fragile" | "unstable" | "stable" | "strong";
+export type TrendDirection = "up" | "down" | "flat";
+export type TrendMomentum = "accelerating" | null;
 
 export interface ActorState {
   loyalty: number;
@@ -64,6 +68,7 @@ export interface ScenarioOption {
   id: string;
   title: string;
   description: string;
+  riskHint?: string;
   risk: RiskLevel;
   factionReaction: string;
   tags?: string[];
@@ -121,6 +126,7 @@ export interface StrategicAction {
   id: string;
   title: string;
   description: string;
+  riskHint?: string;
   apCost: number;
   cooldown: number;
   risk: RiskLevel;
@@ -151,6 +157,12 @@ export interface RegionMemoryState {
   dependency: number;
 }
 
+export interface TierState {
+  tierId: TierId;
+  label: string;
+  severity: number;
+}
+
 export interface CausalityStep {
   label: string;
   detail: string;
@@ -159,9 +171,30 @@ export interface CausalityStep {
 export interface CausalityEntry {
   id: string;
   turn: number;
-  title: string;
-  affectedRegions: RegionKey[];
-  steps: CausalityStep[];
+  phase?: TurnStage;
+  actionId?: string;
+  actionLabel?: string;
+  crisisId?: string;
+  crisisLabel?: string;
+  immediateDeltas?: Delta<StatKey>;
+  delayedEnqueued?: string[];
+  thresholdsTriggered?: string[];
+  regionImpacts?: RegionKey[];
+  title?: string;
+  affectedRegions?: RegionKey[];
+  steps?: CausalityStep[];
+}
+
+export interface TrendState {
+  direction: TrendDirection;
+  momentum: TrendMomentum;
+}
+
+export interface OutcomeEstimate {
+  system: StatKey;
+  min: number;
+  max: number;
+  confidence: IntelProfile["confidence"];
 }
 
 export interface GameState {
@@ -188,6 +221,8 @@ export interface GameState {
   thresholdsFired: Partial<Record<ThresholdKey, boolean>>;
   activePolicies: PolicyId[];
   effectsQueue: QueuedEffect[];
+  lastTurnSystems: Record<CoreSystemKey, number>;
+  systemHistory: Array<Record<CoreSystemKey, number>>;
   lastStatDelta: Delta<StatKey>;
   lastResourceDelta: Delta<ResourceKey>;
   lastActorLoyaltyDelta: Delta<ActorKey>;

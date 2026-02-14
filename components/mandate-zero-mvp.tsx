@@ -740,7 +740,7 @@ export function MandateZeroMvp() {
 
   const selectCausalityEntry = (entry: CausalityEntry) => {
     setSelectedCausalityId(entry.id);
-    setHighlightedRegions(entry.affectedRegions);
+    setHighlightedRegions(entry.affectedRegions ?? []);
   };
 
   return (

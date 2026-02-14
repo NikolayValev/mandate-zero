@@ -13,6 +13,7 @@ import type {
   ActorEffects,
   ActorKey,
   ActorState,
+  CoreSystemKey,
   CrisisFollowupRule,
   Delta,
   DemoSeed,
@@ -20,6 +21,7 @@ import type {
   EffectPack,
   GameState,
   IntelProfile,
+  OutcomeEstimate,
   PendingEffect,
   PolicyId,
   QueuedEffect,
@@ -29,8 +31,11 @@ import type {
   RiskLevel,
   Scenario,
   ScenarioOption,
+  StrategicAction,
   StatKey,
+  TierState,
   ThresholdKey,
+  TrendState,
 } from "./types";
 
 const DEFAULT_THRESHOLD_DANGER: Record<ThresholdKey, number> = {
@@ -51,6 +56,36 @@ const EMPTY_DOCTRINE_RULES: {
   thresholdDanger: DEFAULT_THRESHOLD_DANGER,
 };
 
+export const CORE_SYSTEM_KEYS: CoreSystemKey[] = [
+  "stability",
+  "treasury",
+  "influence",
+  "security",
+  "trust",
+  "pressure",
+];
+
+const TIER_BANDS: Array<{ min: number; state: TierState }> = [
+  { min: 80, state: { tierId: "strong", label: "Strong", severity: 0 } },
+  { min: 60, state: { tierId: "stable", label: "Stable", severity: 1 } },
+  { min: 40, state: { tierId: "unstable", label: "Unstable", severity: 2 } },
+  { min: 20, state: { tierId: "fragile", label: "Fragile", severity: 3 } },
+  { min: 0, state: { tierId: "critical", label: "Critical", severity: 4 } },
+];
+
+const PRESSURE_BANDS: Array<{ min: number; label: string; severity: number }> = [
+  { min: 75, label: "Breaking", severity: 3 },
+  { min: 50, label: "Hot", severity: 2 },
+  { min: 25, label: "Tense", severity: 1 },
+  { min: 0, label: "Calm", severity: 0 },
+];
+
+type OutcomeState = Pick<
+  GameState,
+  "seedText" | "turn" | "scenarioId" | "resources" | "doctrine" | "pressure"
+>;
+type OutcomeAction = Pick<ScenarioOption, "id" | "statEffects"> | Pick<StrategicAction, "id" | "effects">;
+
 function buildInitialRegionMemory(): Record<RegionKey, RegionMemoryState> {
   return {
     north: { resentment: 0, dependency: 0 },
@@ -64,6 +99,53 @@ function buildInitialRegionMemory(): Record<RegionKey, RegionMemoryState> {
 
 export function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
+}
+
+export function toTier(value: number): TierState {
+  const normalized = clamp(value, 0, 100);
+  return TIER_BANDS.find((band) => normalized >= band.min)?.state ?? TIER_BANDS[TIER_BANDS.length - 1].state;
+}
+
+export function toPressureState(value: number): { label: string; severity: number } {
+  const normalized = clamp(value, 0, 100);
+  return (
+    PRESSURE_BANDS.find((band) => normalized >= band.min) ?? PRESSURE_BANDS[PRESSURE_BANDS.length - 1]
+  );
+}
+
+export function snapshotCoreSystems(
+  stats: Record<StatKey, number>,
+  pressure: number,
+): Record<CoreSystemKey, number> {
+  return {
+    stability: stats.stability,
+    treasury: stats.treasury,
+    influence: stats.influence,
+    security: stats.security,
+    trust: stats.trust,
+    pressure,
+  };
+}
+
+export function computeTrend(history: number[]): TrendState {
+  if (history.length < 2) {
+    return { direction: "flat", momentum: null };
+  }
+
+  const latest = history[history.length - 1] - history[history.length - 2];
+  const direction: TrendState["direction"] = latest > 0 ? "up" : latest < 0 ? "down" : "flat";
+  let momentum: TrendState["momentum"] = null;
+
+  if (direction !== "flat" && history.length >= 3) {
+    const previous = history[history.length - 2] - history[history.length - 3];
+    const previousDirection: TrendState["direction"] =
+      previous > 0 ? "up" : previous < 0 ? "down" : "flat";
+    if (previousDirection === direction) {
+      momentum = "accelerating";
+    }
+  }
+
+  return { direction, momentum };
 }
 
 export function normalizeSeed(seedText: string) {
@@ -266,6 +348,89 @@ export function confidenceBand(variance: number): "High" | "Medium" | "Low" {
   return "Low";
 }
 
+function getActionStatEffects(action: OutcomeAction): Delta<StatKey> {
+  if ("statEffects" in action) {
+    return action.statEffects ?? {};
+  }
+  return action.effects.statEffects ?? {};
+}
+
+function actionScopeSeed(
+  state: OutcomeState,
+  crisisId: string,
+  actionId: string,
+  scope: "estimate" | "resolve",
+) {
+  return hashSeed(
+    `${state.seedText}:${state.turn}:${crisisId}:${actionId}:${scope}:${state.resources.intel}:${state.pressure}:${state.doctrine ?? "none"}`,
+  );
+}
+
+export function estimateActionOutcome(
+  state: OutcomeState,
+  action: OutcomeAction,
+  crisisId = state.scenarioId,
+): OutcomeEstimate[] {
+  const profile = getIntelProfile(state.resources.intel, state.doctrine);
+  const variance = computeOutcomeVariance(profile.variance, state.doctrine, state.pressure);
+  let scopedRng = actionScopeSeed(state, crisisId, action.id, "estimate");
+  const estimates: OutcomeEstimate[] = [];
+  const statEffects = getActionStatEffects(action);
+
+  for (const stat of STAT_META.map((item) => item.key)) {
+    const base = statEffects[stat];
+    if (!base) {
+      continue;
+    }
+
+    const width = Math.max(1, variance - (Math.abs(base) <= 2 ? 1 : 0));
+    const lowerRoll = randomInt(scopedRng, 0, width);
+    scopedRng = lowerRoll.nextState;
+    const upperRoll = randomInt(scopedRng, 0, width);
+    scopedRng = upperRoll.nextState;
+
+    const min = base - width - lowerRoll.value;
+    const max = base + width + upperRoll.value;
+    const low = Math.min(min, max);
+    const high = Math.max(min, max);
+
+    estimates.push({
+      system: stat,
+      min: low,
+      max: high,
+      confidence: confidenceBand(Math.max(1, Math.ceil((high - low) / 2))),
+    });
+  }
+
+  return estimates;
+}
+
+export function sampleActionOutcome(
+  state: OutcomeState,
+  action: OutcomeAction,
+  crisisId = state.scenarioId,
+) {
+  const profile = getIntelProfile(state.resources.intel, state.doctrine);
+  const variance = computeOutcomeVariance(profile.variance, state.doctrine, state.pressure);
+  let scopedRng = actionScopeSeed(state, crisisId, action.id, "resolve");
+  const sampled: Delta<StatKey> = {};
+  const statEffects = getActionStatEffects(action);
+
+  for (const stat of STAT_META.map((item) => item.key)) {
+    const base = statEffects[stat];
+    if (!base) {
+      continue;
+    }
+
+    const width = Math.max(1, variance - (Math.abs(base) <= 2 ? 1 : 0));
+    const roll = randomInt(scopedRng, -width, width);
+    scopedRng = roll.nextState;
+    sampled[stat] = base + roll.value;
+  }
+
+  return { effects: sampled, rngState: scopedRng };
+}
+
 export function rollUncertainStatEffects(
   baseEffects: Delta<StatKey>,
   variance: number,
@@ -406,6 +571,15 @@ export function pickScenarioWithChains(
 export function createInitialGame(seedText: string): GameState {
   const normalizedSeed = normalizeSeed(seedText);
   const firstPick = pickScenario(undefined, hashSeed(normalizedSeed));
+  const initialStats = {
+    stability: 60,
+    treasury: 56,
+    influence: 54,
+    security: 52,
+    trust: 55,
+  };
+  const initialPressure = 12;
+  const initialSystems = snapshotCoreSystems(initialStats, initialPressure);
 
   return {
     seedText: normalizedSeed,
@@ -420,16 +594,10 @@ export function createInitialGame(seedText: string): GameState {
     doctrine: null,
     maxActionPoints: 2,
     actionPoints: 2,
-    pressure: 12,
+    pressure: initialPressure,
     collapseCount: 0,
     coupRisk: 12,
-    stats: {
-      stability: 60,
-      treasury: 56,
-      influence: 54,
-      security: 52,
-      trust: 55,
-    },
+    stats: initialStats,
     resources: {
       intel: 8,
       supplies: 8,
@@ -454,6 +622,8 @@ export function createInitialGame(seedText: string): GameState {
     thresholdsFired: {},
     activePolicies: [],
     effectsQueue: [],
+    lastTurnSystems: initialSystems,
+    systemHistory: [initialSystems],
     lastStatDelta: {},
     lastResourceDelta: {},
     lastActorLoyaltyDelta: {},

@@ -49,7 +49,7 @@ export function SimulationLogCard({ entries, selectedEntryId, onSelectEntry }: S
                     <p className="font-medium">
                       T{entry.turn}: {entry.title}
                     </p>
-                    {entry.steps.map((step) => (
+                    {(entry.steps ?? []).map((step) => (
                       <p key={`${entry.id}-${step.label}`} className="text-xs text-muted-foreground">
                         {step.label}: {step.detail}
                       </p>
