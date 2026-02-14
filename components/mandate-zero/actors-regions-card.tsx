@@ -52,22 +52,26 @@ export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
                     <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
                       Loyalty
                     </p>
-                    <div className="h-2 rounded-full bg-muted">
+                    <div className="h-4 rounded-full bg-muted/70">
                       <div
-                        className="h-2 rounded-full bg-emerald-500 transition-all"
+                        className="flex h-4 items-center justify-end rounded-full bg-emerald-500 px-2 text-[10px] font-semibold text-emerald-50 transition-all"
                         style={{ width: `${state.loyalty}%` }}
-                      />
+                      >
+                        {state.loyalty}%
+                      </div>
                     </div>
                   </div>
                   <div>
                     <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
                       Pressure
                     </p>
-                    <div className="h-2 rounded-full bg-muted">
+                    <div className="h-4 rounded-full bg-muted/70">
                       <div
-                        className="h-2 rounded-full bg-rose-500 transition-all"
+                        className="flex h-4 items-center justify-end rounded-full bg-rose-500 px-2 text-[10px] font-semibold text-rose-50 transition-all"
                         style={{ width: `${state.pressure}%` }}
-                      />
+                      >
+                        {state.pressure}%
+                      </div>
                     </div>
                   </div>
                 </div>
