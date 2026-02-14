@@ -49,7 +49,7 @@ function RegionBlock({
   const meshRef = useRef<Mesh>(null);
   const stress = game.regions[region];
   const actor = game.actors[REGION_ACTOR_FOCUS[region]];
-  const baseHeight = 0.18 + stress / 55;
+  const baseHeight = 0.3 + stress / 95;
   const isSelected = selectedRegion === region;
   const isHighlighted = highlightedRegions.includes(region);
   const isPulsing = activeCrisisRegions.includes(region) || queuedFalloutRegions.includes(region);
@@ -60,7 +60,10 @@ function RegionBlock({
       return;
     }
     const pulse = isPulsing ? Math.sin(clock.elapsedTime * 4.4) * 0.05 : 0;
-    meshRef.current.scale.y = baseHeight + pulse + (isSelected ? 0.08 : 0);
+    const nextScale = baseHeight + pulse + (isSelected ? 0.12 : 0);
+    meshRef.current.scale.y = nextScale;
+    // Keep block bases anchored to the floor as height changes.
+    meshRef.current.position.y = nextScale / 2;
   });
 
   return (

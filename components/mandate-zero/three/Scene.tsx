@@ -24,18 +24,19 @@ export function StateMeshScene({
   return (
     <div className="h-[220px] w-full overflow-hidden rounded-lg border bg-slate-950">
       <Canvas
-        orthographic
         frameloop="always"
-        dpr={[1, 1.25]}
-        gl={{ antialias: false, powerPreference: "low-power" }}
-        camera={{ position: [0, 5.8, 0], zoom: 95, near: 0.1, far: 30 }}
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, powerPreference: "low-power" }}
+        camera={{ position: [5.2, 4.6, 5.8], fov: 44, near: 0.1, far: 40 }}
       >
         <color attach="background" args={["#020617"]} />
-        <ambientLight intensity={0.65} />
-        <directionalLight position={[4, 7, 3]} intensity={0.45} />
+        <fog attach="fog" args={["#020617", 10, 26]} />
+        <ambientLight intensity={0.42} />
+        <hemisphereLight args={["#dbeafe", "#0f172a", 0.45]} />
+        <directionalLight position={[5, 8, 4]} intensity={0.75} />
         <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[6, 5]} />
-          <meshStandardMaterial color="#0f172a" roughness={0.95} metalness={0.05} />
+          <planeGeometry args={[7, 6]} />
+          <meshStandardMaterial color="#0f172a" roughness={0.92} metalness={0.05} />
         </mesh>
         <Regions
           game={game}
