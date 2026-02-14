@@ -8,6 +8,9 @@
     "lint": "eslint . --max-warnings=0 --ignore-pattern .next --ignore-pattern node_modules --ignore-pattern next-env.d.ts",
     "test": "vitest run --maxWorkers=1",
     "test:watch": "vitest --maxWorkers=1",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
     "check": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
@@ -30,6 +33,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.58.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

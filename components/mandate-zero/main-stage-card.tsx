@@ -80,13 +80,13 @@ export function MainStageCard({
     pressureTrend.direction === "up" ? "↑" : pressureTrend.direction === "down" ? "↓" : "→";
 
   return (
-    <Card>
+    <Card data-testid="main-stage-card">
       <CardHeader>
         <div className="rounded-md border p-2">
           <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
             <span>Turn {Math.min(game.turn, game.maxTurns)}</span>
             <span>Stage {game.turnStage}</span>
-            <span>
+            <span data-testid="pressure-label">
               Pressure {pressureState.label} {pressureArrow}
               {showDebugNumbers ? ` (${game.pressure})` : ""}
             </span>
@@ -156,6 +156,7 @@ export function MainStageCard({
                 <button
                   key={option.id}
                   type="button"
+                  data-testid={`doctrine-${option.id}`}
                   className="rounded-lg border p-3 text-left transition hover:bg-accent"
                   onClick={() => onChooseDoctrine(option.id)}
                 >
@@ -174,6 +175,7 @@ export function MainStageCard({
             <button
               key={option.id}
               type="button"
+              data-testid={`crisis-option-${option.id}`}
               disabled={!canPlay}
               onClick={() => onResolveCrisisOption(option)}
               className="w-full rounded-lg border p-4 text-left transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"

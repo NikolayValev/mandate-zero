@@ -41,7 +41,7 @@ export function StrategicActionsCard({
           const disabledReason = getActionDisabledReason(action);
           const apCost = getActionPointCost(action);
           return (
-            <div key={action.id} className="rounded-lg border p-3">
+            <div key={action.id} data-testid={`strategic-action-${action.id}`} className="rounded-lg border p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium">{action.title}</p>
                 <Badge variant={riskVariant(action.risk)}>Risk {action.risk}</Badge>
@@ -77,6 +77,7 @@ export function StrategicActionsCard({
                   size="sm"
                   variant="secondary"
                   className="min-h-11 px-4"
+                  data-testid={`use-action-${action.id}`}
                   onClick={() => onTriggerStrategicAction(action)}
                   disabled={Boolean(disabledReason)}
                 >

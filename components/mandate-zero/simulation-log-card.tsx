@@ -37,6 +37,7 @@ export function SimulationLogCard({ entries, selectedEntryId, onSelectEntry }: S
             {entries.map((entry) => (
               <li
                 key={entry.id}
+                data-testid="causality-entry"
                 className={`rounded border p-2 transition-colors ${
                   selectedEntryId === entry.id ? "border-primary bg-primary/5" : ""
                 }`}

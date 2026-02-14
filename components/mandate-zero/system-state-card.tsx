@@ -65,13 +65,18 @@ export function SystemStateCard({
           return (
             <div
               key={stat.key}
+              data-testid={`system-row-${stat.key}`}
+              data-highlighted={highlighted ? "true" : "false"}
               className={`space-y-1 rounded-md border p-2 transition-colors ${
                 highlighted ? "border-primary/60 bg-primary/5 animate-pulse" : "border-transparent"
               }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm">{stat.label}</div>
-                <Badge variant={tier.severity >= 3 ? "destructive" : tier.severity >= 2 ? "secondary" : "outline"}>
+                <Badge
+                  data-testid={`system-tier-${stat.key}`}
+                  variant={tier.severity >= 3 ? "destructive" : tier.severity >= 2 ? "secondary" : "outline"}
+                >
                   {tier.label} {trendArrow(trend.direction)}
                 </Badge>
               </div>

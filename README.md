@@ -68,9 +68,17 @@ npm run build
 ## Testing
 
 Unit tests cover deterministic engine behavior and state guards.
+Playwright E2E tests cover decision clarity, determinism, consequence visibility, mobile tap flow, and keyboard smoke.
 
 - Test file: `components/mandate-zero/engine.test.ts`
 - Runner: Vitest
+- E2E folder: `tests/e2e`
+- Runner: Playwright
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
 
 ## CI
 

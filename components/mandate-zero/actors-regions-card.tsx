@@ -105,6 +105,8 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
             return (
               <div
                 key={actor.key}
+                data-testid={`actor-card-${actor.key}`}
+                data-highlighted={highlightedActors.includes(actor.key) ? "true" : "false"}
                 className={`rounded-md border bg-gradient-to-b from-background to-muted/30 p-3 transition-colors ${
                   highlightedActors.includes(actor.key) ? "border-primary/60 bg-primary/5 animate-pulse" : ""
                 }`}
@@ -147,6 +149,8 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
             return (
               <div
                 key={region.key}
+                data-testid={`region-card-${region.key}`}
+                data-highlighted={highlightedRegions.includes(region.key) ? "true" : "false"}
                 className={`rounded-md border p-2 text-xs ${regionClass(stress)} ${
                   highlightedRegions.includes(region.key) ? "ring-2 ring-primary/60" : ""
                 } ${selectedRegion === region.key ? "ring-2 ring-cyan-500/70" : ""}`}
