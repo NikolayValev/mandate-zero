@@ -2,6 +2,7 @@ export * from "./data";
 export * from "./engine";
 export * from "./types";
 export * from "./actors-regions-card";
+export * from "./region-theater-map";
 export * from "./main-stage-card";
 export * from "./policies-card";
 export * from "./simulation-log-card";

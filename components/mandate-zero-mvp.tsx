@@ -478,7 +478,7 @@ export function MandateZeroMvp() {
   ].filter((warning): warning is string => Boolean(warning));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.35fr_0.95fr]">
+    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] xl:grid-cols-[1.55fr_1fr]">
       <MainStageCard
         game={game}
         scenario={scenario}
