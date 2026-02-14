@@ -6,6 +6,10 @@ export async function resetLocalStateAndOpenHome(page: Page) {
   });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Lead the state through 10 crisis turns/i })).toBeVisible();
+  const onboardingDismiss = page.getByTestId("onboarding-dismiss");
+  if (await onboardingDismiss.count()) {
+    await onboardingDismiss.click();
+  }
 }
 
 export async function chooseDoctrine(page: Page, doctrineId: "technocrat" | "populist" | "militarist") {

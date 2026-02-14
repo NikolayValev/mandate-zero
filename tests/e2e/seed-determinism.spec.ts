@@ -9,6 +9,10 @@ async function runScriptedSequence(browser: Browser) {
   });
 
   await page.goto("/");
+  const onboardingDismiss = page.getByTestId("onboarding-dismiss");
+  if (await onboardingDismiss.count()) {
+    await onboardingDismiss.click();
+  }
   await chooseDoctrine(page, "technocrat");
   await page.getByTestId("use-action-intel-sweep").click();
   await resolveFirstCrisisOption(page);

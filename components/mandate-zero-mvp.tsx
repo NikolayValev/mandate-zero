@@ -12,7 +12,9 @@ import {
 import { ActorsRegionsCard } from "@/components/mandate-zero/actors-regions-card";
 import { DemoSeedsCard } from "@/components/mandate-zero/demo-seeds-card";
 import { MainStageCard } from "@/components/mandate-zero/main-stage-card";
+import { OnboardingOverlay } from "@/components/mandate-zero/onboarding-overlay";
 import { PoliciesCard } from "@/components/mandate-zero/policies-card";
+import { RunDebriefCard } from "@/components/mandate-zero/run-debrief-card";
 import { SimulationLogCard } from "@/components/mandate-zero/simulation-log-card";
 import { StrategicActionsCard } from "@/components/mandate-zero/strategic-actions-card";
 import { SystemStateCard } from "@/components/mandate-zero/system-state-card";
@@ -167,6 +169,7 @@ export function MandateZeroMvp() {
   const [highlightedActors, setHighlightedActors] = useState<ActorKey[]>([]);
   const [highlightedRegions, setHighlightedRegions] = useState<RegionKey[]>([]);
   const [showDebugNumbers, setShowDebugNumbers] = useState(false);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [seedInput, setSeedInput] = useState(DEFAULT_SEED);
   const [customSeeds, setCustomSeeds] = useState<DemoSeed[]>([]);
   const [newSeedName, setNewSeedName] = useState("");
@@ -361,6 +364,12 @@ export function MandateZeroMvp() {
   const escalationClock = Math.max(1, 4 - Math.floor((hotRegions + criticalRegions) / 2));
 
   const canPlay = game.phase === "playing" && Boolean(game.doctrine);
+  const showOnboarding =
+    !onboardingDismissed &&
+    game.phase === "playing" &&
+    game.turn === 1 &&
+    !game.doctrine &&
+    history.length === 0;
 
   const startRunWithSeed = (seedValue: string) => {
     const normalizedSeed = normalizeSeed(seedValue);
@@ -372,6 +381,7 @@ export function MandateZeroMvp() {
     setHighlightedSystems([]);
     setHighlightedActors([]);
     setHighlightedRegions([]);
+    setOnboardingDismissed(false);
     setSeedMessage(`Loaded seed '${normalizedSeed}'.`);
   };
 
@@ -902,8 +912,10 @@ export function MandateZeroMvp() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.95fr_1.5fr_1fr]">
-      <div className="order-2 space-y-6 lg:order-1">
+    <div className="relative">
+      {showOnboarding ? <OnboardingOverlay onDismiss={() => setOnboardingDismissed(true)} /> : null}
+      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.5fr_1fr]">
+        <div className="order-2 space-y-6 lg:order-1">
         <PoliciesCard game={game} canPlay={canPlay} onEnactPolicy={enactPolicy} />
         <StrategicActionsCard
           getActionDisabledReason={getActionDisabledReason}
@@ -917,52 +929,60 @@ export function MandateZeroMvp() {
           selectedEntryId={selectedCausalityId}
           onSelectEntry={selectCausalityEntry}
         />
-      </div>
+        </div>
 
-      <div className="order-1 lg:order-2">
-        <MainStageCard
-          game={game}
-          scenario={scenario}
-          intelProfile={intelProfile}
-          escalationClock={escalationClock}
-          hotRegions={hotRegions}
-          criticalRegions={criticalRegions}
-          upcomingEffects={upcomingEffects}
-          optionOutcomeEstimates={optionOutcomeEstimates}
-          canPlay={canPlay}
-          showDebugNumbers={showDebugNumbers}
-          onChooseDoctrine={chooseDoctrine}
-          onResolveCrisisOption={resolveCrisisOption}
-        />
-      </div>
+        <div className="order-1 space-y-6 lg:order-2">
+          {game.phase !== "playing" ? (
+            <RunDebriefCard
+              game={game}
+              entries={causalityHistory}
+              onRestart={() => startRunWithSeed(game.seedText)}
+            />
+          ) : null}
+          <MainStageCard
+            game={game}
+            scenario={scenario}
+            intelProfile={intelProfile}
+            escalationClock={escalationClock}
+            hotRegions={hotRegions}
+            criticalRegions={criticalRegions}
+            upcomingEffects={upcomingEffects}
+            optionOutcomeEstimates={optionOutcomeEstimates}
+            canPlay={canPlay}
+            showDebugNumbers={showDebugNumbers}
+            onChooseDoctrine={chooseDoctrine}
+            onResolveCrisisOption={resolveCrisisOption}
+          />
+        </div>
 
-      <div className="order-3 space-y-6">
-        <DemoSeedsCard
-          seedInput={seedInput}
-          onSeedInputChange={setSeedInput}
-          onStartRunWithSeed={startRunWithSeed}
-          onClearLocalData={clearLocalData}
-          newSeedName={newSeedName}
-          onNewSeedNameChange={setNewSeedName}
-          newSeedValue={newSeedValue}
-          onNewSeedValueChange={setNewSeedValue}
-          onAddCustomSeed={addCustomSeed}
-          seedMessage={seedMessage}
-          allSeeds={allSeeds}
-          onRemoveCustomSeed={removeCustomSeed}
-        />
-        <SystemStateCard
-          game={game}
-          warnings={warnings}
-          highlightedSystems={highlightedSystems}
-          showDebugNumbers={showDebugNumbers}
-          onToggleDebugNumbers={() => setShowDebugNumbers((prev) => !prev)}
-        />
-        <ActorsRegionsCard
-          game={game}
-          highlightedRegions={highlightedRegions}
-          highlightedActors={highlightedActors}
-        />
+        <div className="order-3 space-y-6">
+          <DemoSeedsCard
+            seedInput={seedInput}
+            onSeedInputChange={setSeedInput}
+            onStartRunWithSeed={startRunWithSeed}
+            onClearLocalData={clearLocalData}
+            newSeedName={newSeedName}
+            onNewSeedNameChange={setNewSeedName}
+            newSeedValue={newSeedValue}
+            onNewSeedValueChange={setNewSeedValue}
+            onAddCustomSeed={addCustomSeed}
+            seedMessage={seedMessage}
+            allSeeds={allSeeds}
+            onRemoveCustomSeed={removeCustomSeed}
+          />
+          <SystemStateCard
+            game={game}
+            warnings={warnings}
+            highlightedSystems={highlightedSystems}
+            showDebugNumbers={showDebugNumbers}
+            onToggleDebugNumbers={() => setShowDebugNumbers((prev) => !prev)}
+          />
+          <ActorsRegionsCard
+            game={game}
+            highlightedRegions={highlightedRegions}
+            highlightedActors={highlightedActors}
+          />
+        </div>
       </div>
     </div>
   );
