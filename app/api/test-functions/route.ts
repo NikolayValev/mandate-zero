@@ -1,14 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { 
+  ensurePlayerProfile,
   getPlayerProfile, 
   getPlayerCharacterData, 
   insertPlayerAction 
 } from '@/lib/supabase/server';
 
+type TestAction =
+  | "getPlayerProfile"
+  | "getCharacterData"
+  | "getSpecificField"
+  | "insertAction";
+
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+type JsonObject = { [key: string]: JsonValue };
+
+interface TestFunctionsBody {
+  action?: TestAction;
+  gameId?: string;
+  specificField?: string;
+  actionType?: string;
+  currentTick?: number;
+  payload?: JsonObject;
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getRequiredString(value: unknown, fieldName: string) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${fieldName} is required`);
+  }
+  return value.trim();
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, gameId, specificField, actionType, currentTick, payload } = body;
+    const parsedBody = await request.json();
+    const body: TestFunctionsBody = isJsonObject(parsedBody) ? parsedBody : {};
+    const { action, specificField, actionType } = body;
+
+    if (!action) {
+      return NextResponse.json(
+        { success: false, message: "action is required" },
+        { status: 400 },
+      );
+    }
 
     let result;
     let success = true;
@@ -17,6 +56,7 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'getPlayerProfile':
         try {
+          const gameId = getRequiredString(body.gameId, "gameId");
           result = await getPlayerProfile(gameId);
           message = 'Player profile fetched successfully';
         } catch (error) {
@@ -28,6 +68,7 @@ export async function POST(request: NextRequest) {
 
       case 'getCharacterData':
         try {
+          const gameId = getRequiredString(body.gameId, "gameId");
           result = await getPlayerCharacterData(gameId);
           message = 'Character data fetched successfully';
         } catch (error) {
@@ -39,8 +80,10 @@ export async function POST(request: NextRequest) {
 
       case 'getSpecificField':
         try {
-          result = await getPlayerCharacterData(gameId, specificField);
-          message = `Specific field '${specificField}' fetched successfully`;
+          const gameId = getRequiredString(body.gameId, "gameId");
+          const fieldName = getRequiredString(specificField, "specificField");
+          result = await getPlayerCharacterData(gameId, fieldName);
+          message = `Specific field '${fieldName}' fetched successfully`;
         } catch (error) {
           success = false;
           result = null;
@@ -50,18 +93,26 @@ export async function POST(request: NextRequest) {
 
       case 'insertAction':
         try {
-          // First get player profile to get player ID
-          const playerProfile = await getPlayerProfile(gameId);
-          if (!playerProfile?.id) {
-            throw new Error('Player profile not found - cannot insert action');
+          const gameId = getRequiredString(body.gameId, "gameId");
+          const safeActionType = getRequiredString(actionType, "actionType");
+          const safeCurrentTick = body.currentTick;
+
+          if (!Number.isInteger(safeCurrentTick) || safeCurrentTick === undefined) {
+            throw new Error("currentTick must be an integer");
           }
+
+          if (!isJsonObject(body.payload)) {
+            throw new Error("payload must be a JSON object");
+          }
+
+          const playerProfile = await ensurePlayerProfile(gameId);
 
           result = await insertPlayerAction(
             gameId,
             playerProfile.id,
-            currentTick,
-            actionType,
-            payload
+            safeCurrentTick,
+            safeActionType,
+            body.payload
           );
           message = 'Action inserted successfully';
         } catch (error) {

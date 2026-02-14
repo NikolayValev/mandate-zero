@@ -1,5 +1,39 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import type { PostgrestError } from "@supabase/supabase-js";
+
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+type JsonObject = { [key: string]: JsonValue };
+
+export interface PlayerProfile {
+  id: string;
+  user_id: string;
+  game_id: string;
+  character_data: JsonObject;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlayerAction {
+  id: number;
+  game_id: string;
+  player_id: string;
+  tick_target: number;
+  type: string;
+  payload: JsonObject;
+  created_at: string;
+}
+
+const DEFAULT_CHARACTER_DATA: JsonObject = {
+  reputation: 0,
+  health: 100,
+  credits: 1000,
+  level: 1,
+  inventory: [],
+};
+
+const UNIQUE_VIOLATION = "23505";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -28,6 +62,24 @@ export async function createClient() {
   );
 }
 
+async function getCurrentUserId(client?: Awaited<ReturnType<typeof createClient>>) {
+  const supabase = client ?? (await createClient());
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    throw new Error("User not authenticated");
+  }
+
+  return user.id;
+}
+
+function isUniqueViolation(error: PostgrestError | null) {
+  return error?.code === UNIQUE_VIOLATION;
+}
+
 /**
  * Get player profile in a specific game
  * @param gameId - The ID of the game
@@ -35,30 +87,60 @@ export async function createClient() {
  */
 export async function getPlayerProfile(gameId: string) {
   const supabase = await createClient();
-
-  // Get the current user
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    throw new Error("User not authenticated");
-  }
+  const userId = await getCurrentUserId(supabase);
 
   // Fetch the player profile for this user in the specified game
   const { data: player, error } = await supabase
     .from("players")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("game_id", gameId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to fetch player profile: ${error.message}`);
   }
 
-  return player;
+  return player as PlayerProfile | null;
+}
+
+/**
+ * Ensure the current user has a player profile in the requested game.
+ * Creates one with starter character data when missing.
+ */
+export async function ensurePlayerProfile(gameId: string) {
+  const supabase = await createClient();
+  const userId = await getCurrentUserId(supabase);
+
+  const existing = await getPlayerProfile(gameId);
+  if (existing) {
+    return existing;
+  }
+
+  const { data: created, error: insertError } = await supabase
+    .from("players")
+    .insert({
+      user_id: userId,
+      game_id: gameId,
+      character_data: DEFAULT_CHARACTER_DATA,
+    })
+    .select("*")
+    .single();
+
+  if (insertError && !isUniqueViolation(insertError)) {
+    throw new Error(`Failed to create player profile: ${insertError.message}`);
+  }
+
+  // If another request inserted at the same time, fetch the row again.
+  if (!created) {
+    const fallback = await getPlayerProfile(gameId);
+    if (!fallback) {
+      throw new Error("Player profile was not found after create attempt");
+    }
+    return fallback;
+  }
+
+  return created as PlayerProfile;
 }
 
 /**
@@ -68,36 +150,24 @@ export async function getPlayerProfile(gameId: string) {
  * @returns Character data or specific field value
  */
 export async function getPlayerCharacterData(gameId: string, specificField?: string) {
-  const supabase = await createClient();
-  
-  // Get the current user
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  const player = await getPlayerProfile(gameId);
 
-  if (userError || !user) {
-    throw new Error("User not authenticated");
+  if (!player) {
+    throw new Error(`No player profile found for game '${gameId}'`);
   }
 
-  // Build the select query - either full character_data or specific field
-  const selectQuery = specificField 
-    ? `character_data->>${specificField}` 
-    : 'character_data';
+  const characterData = player.character_data ?? {};
 
-  // Fetch the character data for this user in the specified game
-  const { data: characterData, error } = await supabase
-    .from('players')
-    .select(selectQuery)
-    .eq('user_id', user.id)
-    .eq('game_id', gameId)
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to fetch character data: ${error.message}`);
+  if (!specificField) {
+    return characterData;
   }
 
-  return characterData;
+  return {
+    field: specificField,
+    value: Object.prototype.hasOwnProperty.call(characterData, specificField)
+      ? characterData[specificField]
+      : null,
+  };
 }
 
 /**
@@ -110,38 +180,55 @@ export async function getPlayerCharacterData(gameId: string, specificField?: str
  * @returns Success confirmation
  */
 export async function insertPlayerAction(
-  gameId: string, 
-  playerId: string, 
-  currentTick: number, 
-  actionType: string, 
-  payload: Record<string, any>
+  gameId: string,
+  playerId: string,
+  currentTick: number,
+  actionType: string,
+  payload: JsonObject,
 ) {
   const supabase = await createClient();
-  
-  // Get the current user for authentication
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId(supabase);
 
-  if (userError || !user) {
-    throw new Error("User not authenticated");
+  const normalizedActionType = actionType.trim();
+  if (!normalizedActionType) {
+    throw new Error("Action type is required");
   }
 
-  // Insert the new action
-  const { error } = await supabase
-    .from('actions')
-    .insert([{
+  if (!Number.isInteger(currentTick) || currentTick < 0) {
+    throw new Error("Current tick must be a non-negative integer");
+  }
+
+  const { data: player, error: playerError } = await supabase
+    .from("players")
+    .select("id")
+    .eq("id", playerId)
+    .eq("game_id", gameId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (playerError) {
+    throw new Error(`Failed to validate player ownership: ${playerError.message}`);
+  }
+
+  if (!player) {
+    throw new Error("Player profile does not belong to the current user");
+  }
+
+  const { data: insertedAction, error } = await supabase
+    .from("actions")
+    .insert({
       game_id: gameId,
       player_id: playerId,
       tick_target: currentTick + 1,
-      type: actionType,
-      payload: payload
-    }]);
+      type: normalizedActionType,
+      payload,
+    })
+    .select("*")
+    .single();
 
   if (error) {
     throw new Error(`Failed to insert action: ${error.message}`);
   }
 
-  return { success: true, message: 'Action inserted successfully' };
+  return insertedAction as PlayerAction;
 }

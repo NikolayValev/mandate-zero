@@ -32,6 +32,20 @@
 - Components with [shadcn/ui](https://ui.shadcn.com/)
 - Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
   - Environment variables automatically assigned to Vercel project
+- End-to-end game flow for a demo game (`demo-game-id`) with:
+  - player profile bootstrap per authenticated user
+  - character data reads (full + field-level)
+  - action queue insertion for next game tick
+
+## Mandate Zero game schema setup
+
+Before opening `/protected`, run the game SQL schema once in Supabase:
+
+1. Open your Supabase project.
+2. Go to SQL Editor.
+3. Copy and run the SQL in `supabase/schema.sql`.
+
+This creates `games`, `players`, and `actions` tables, plus RLS policies and a seeded `demo-game-id` row.
 
 ## Demo
 
@@ -91,6 +105,7 @@ If you wish to just develop locally and not deploy to Vercel, [follow the steps 
    The starter kit should now be running on [localhost:3000](http://localhost:3000/).
 
 6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+7. Run the SQL in `supabase/schema.sql` in Supabase SQL Editor (one-time setup for the game flow).
 
 > Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
 

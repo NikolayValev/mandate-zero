@@ -4,46 +4,68 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-interface GameFunctionsTestProps {
-  initialPlayerProfile?: unknown;
-  initialCharacterData?: unknown;
-  initialReputationData?: unknown;
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  result?: unknown;
+  error?: string;
+  timestamp?: string;
 }
 
-export function GameFunctionsTest({ 
-  initialPlayerProfile, 
-  initialCharacterData, 
-  initialReputationData 
-}: GameFunctionsTestProps) {
-  const [gameId, setGameId] = useState("demo-game-id");
+interface ResultsMap {
+  playerProfile?: ApiResponse;
+  characterData?: ApiResponse;
+  specificField?: ApiResponse;
+  insertAction?: ApiResponse;
+}
+
+interface GameFunctionsTestProps {
+  defaultGameId: string;
+}
+
+export function GameFunctionsTest({ defaultGameId }: GameFunctionsTestProps) {
+  const [gameId, setGameId] = useState(defaultGameId);
   const [specificField, setSpecificField] = useState("reputation");
-  
-  // Action form state
+
   const [actionType, setActionType] = useState("bribe");
   const [targetPlayerId, setTargetPlayerId] = useState("xyz");
   const [amount, setAmount] = useState(5000);
   const [currentTick, setCurrentTick] = useState(1);
-  
+
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<Record<string, unknown>>({});
+  const [results, setResults] = useState<ResultsMap>({});
+
+  const runTest = async (body: Record<string, unknown>) => {
+    const response = await fetch("/api/test-functions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return (await response.json()) as ApiResponse;
+  };
 
   const testGetPlayerProfile = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/test-functions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'getPlayerProfile', 
-          gameId 
-        }),
-      });
-      const data = await response.json();
-      setResults(prev => ({ ...prev, playerProfile: data }));
+      const data = await runTest({ action: "getPlayerProfile", gameId });
+      setResults((prev) => ({ ...prev, playerProfile: data }));
     } catch (error) {
-      setResults(prev => ({ ...prev, playerProfile: { error: (error as Error).message } }));
+      setResults((prev) => ({
+        ...prev,
+        playerProfile: {
+          success: false,
+          message: "Failed to fetch player profile",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      }));
     }
     setLoading(false);
   };
@@ -51,18 +73,17 @@ export function GameFunctionsTest({
   const testGetCharacterData = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/test-functions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'getCharacterData', 
-          gameId 
-        }),
-      });
-      const data = await response.json();
-      setResults(prev => ({ ...prev, characterData: data }));
+      const data = await runTest({ action: "getCharacterData", gameId });
+      setResults((prev) => ({ ...prev, characterData: data }));
     } catch (error) {
-      setResults(prev => ({ ...prev, characterData: { error: (error as Error).message } }));
+      setResults((prev) => ({
+        ...prev,
+        characterData: {
+          success: false,
+          message: "Failed to fetch character data",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      }));
     }
     setLoading(false);
   };
@@ -70,19 +91,21 @@ export function GameFunctionsTest({
   const testGetSpecificField = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/test-functions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'getSpecificField', 
-          gameId,
-          specificField 
-        }),
+      const data = await runTest({
+        action: "getSpecificField",
+        gameId,
+        specificField,
       });
-      const data = await response.json();
-      setResults(prev => ({ ...prev, specificField: data }));
+      setResults((prev) => ({ ...prev, specificField: data }));
     } catch (error) {
-      setResults(prev => ({ ...prev, specificField: { error: (error as Error).message } }));
+      setResults((prev) => ({
+        ...prev,
+        specificField: {
+          success: false,
+          message: "Failed to fetch specific field",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      }));
     }
     setLoading(false);
   };
@@ -90,21 +113,23 @@ export function GameFunctionsTest({
   const testInsertAction = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/test-functions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'insertAction',
-          gameId,
-          actionType,
-          currentTick,
-          payload: { target_player_id: targetPlayerId, amount }
-        }),
+      const data = await runTest({
+        action: "insertAction",
+        gameId,
+        actionType,
+        currentTick,
+        payload: { target_player_id: targetPlayerId, amount },
       });
-      const data = await response.json();
-      setResults(prev => ({ ...prev, insertAction: data }));
+      setResults((prev) => ({ ...prev, insertAction: data }));
     } catch (error) {
-      setResults(prev => ({ ...prev, insertAction: { error: (error as Error).message } }));
+      setResults((prev) => ({
+        ...prev,
+        insertAction: {
+          success: false,
+          message: "Failed to insert action",
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      }));
     }
     setLoading(false);
   };
@@ -113,9 +138,9 @@ export function GameFunctionsTest({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>🎮 Game Functions Test Interface</CardTitle>
+          <CardTitle>Game Functions Test Interface</CardTitle>
           <CardDescription>
-            Test the player profile, character data, and action insertion functions
+            Test player profile reads, character reads, and action insertion.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -131,25 +156,24 @@ export function GameFunctionsTest({
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Player Profile Test */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>🔐 Player Profile</CardTitle>
-            <CardDescription>Fetch player profile for the game</CardDescription>
+            <CardTitle>Player Profile</CardTitle>
+            <CardDescription>Fetch your player row for the game.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button 
-              onClick={testGetPlayerProfile} 
+            <Button
+              onClick={testGetPlayerProfile}
               disabled={loading}
               className="w-full"
             >
               {loading ? "Loading..." : "Get Player Profile"}
             </Button>
-            {results.playerProfile && (
+            {Boolean(results.playerProfile) && (
               <div className="mt-4">
-                <h4 className="font-semibold mb-2">Result:</h4>
-                <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-40">
+                <h4 className="mb-2 font-semibold">Result:</h4>
+                <pre className="max-h-40 overflow-auto rounded bg-muted p-3 text-xs">
                   {JSON.stringify(results.playerProfile, null, 2)}
                 </pre>
               </div>
@@ -157,24 +181,23 @@ export function GameFunctionsTest({
           </CardContent>
         </Card>
 
-        {/* Character Data Test */}
         <Card>
           <CardHeader>
-            <CardTitle>🧬 Character Data</CardTitle>
-            <CardDescription>Fetch full character sheet data</CardDescription>
+            <CardTitle>Character Data</CardTitle>
+            <CardDescription>Fetch the full character sheet.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button 
-              onClick={testGetCharacterData} 
+            <Button
+              onClick={testGetCharacterData}
               disabled={loading}
               className="w-full"
             >
               {loading ? "Loading..." : "Get Character Data"}
             </Button>
-            {results.characterData && (
+            {Boolean(results.characterData) && (
               <div className="mt-4">
-                <h4 className="font-semibold mb-2">Result:</h4>
-                <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-40">
+                <h4 className="mb-2 font-semibold">Result:</h4>
+                <pre className="max-h-40 overflow-auto rounded bg-muted p-3 text-xs">
                   {JSON.stringify(results.characterData, null, 2)}
                 </pre>
               </div>
@@ -182,11 +205,10 @@ export function GameFunctionsTest({
           </CardContent>
         </Card>
 
-        {/* Specific Field Test */}
         <Card>
           <CardHeader>
-            <CardTitle>🎯 Specific Field</CardTitle>
-            <CardDescription>Fetch specific character data field</CardDescription>
+            <CardTitle>Specific Field</CardTitle>
+            <CardDescription>Fetch one field from character data.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -195,20 +217,20 @@ export function GameFunctionsTest({
                 id="specificField"
                 value={specificField}
                 onChange={(e) => setSpecificField(e.target.value)}
-                placeholder="e.g., reputation, health, level"
+                placeholder="reputation, health, level"
               />
             </div>
-            <Button 
-              onClick={testGetSpecificField} 
+            <Button
+              onClick={testGetSpecificField}
               disabled={loading}
               className="w-full"
             >
               {loading ? "Loading..." : "Get Specific Field"}
             </Button>
-            {results.specificField && (
+            {Boolean(results.specificField) && (
               <div className="mt-4">
-                <h4 className="font-semibold mb-2">Result:</h4>
-                <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-40">
+                <h4 className="mb-2 font-semibold">Result:</h4>
+                <pre className="max-h-40 overflow-auto rounded bg-muted p-3 text-xs">
                   {JSON.stringify(results.specificField, null, 2)}
                 </pre>
               </div>
@@ -216,11 +238,10 @@ export function GameFunctionsTest({
           </CardContent>
         </Card>
 
-        {/* Action Insertion Test */}
         <Card>
           <CardHeader>
-            <CardTitle>📝 Insert Action</CardTitle>
-            <CardDescription>Submit a new action for the next tick</CardDescription>
+            <CardTitle>Insert Action</CardTitle>
+            <CardDescription>Submit action for the next tick.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -263,17 +284,17 @@ export function GameFunctionsTest({
                 />
               </div>
             </div>
-            <Button 
-              onClick={testInsertAction} 
+            <Button
+              onClick={testInsertAction}
               disabled={loading}
               className="w-full"
             >
               {loading ? "Loading..." : "Insert Action"}
             </Button>
-            {results.insertAction && (
+            {Boolean(results.insertAction) && (
               <div className="mt-4">
-                <h4 className="font-semibold mb-2">Result:</h4>
-                <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-40">
+                <h4 className="mb-2 font-semibold">Result:</h4>
+                <pre className="max-h-40 overflow-auto rounded bg-muted p-3 text-xs">
                   {JSON.stringify(results.insertAction, null, 2)}
                 </pre>
               </div>
@@ -282,14 +303,13 @@ export function GameFunctionsTest({
         </Card>
       </div>
 
-      {/* Overall Results */}
       {Object.keys(results).length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>📊 Test Results Summary</CardTitle>
+            <CardTitle>Test Results Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-60">
+            <pre className="max-h-60 overflow-auto rounded bg-muted p-4 text-xs">
               {JSON.stringify(results, null, 2)}
             </pre>
           </CardContent>
