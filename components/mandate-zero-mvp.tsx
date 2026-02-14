@@ -29,6 +29,7 @@ import {
   computePressureGain,
   computeSystemCoupling,
   createInitialGame,
+  estimateActionOutcome,
   evaluateThresholdTriggers,
   getActionPointCost,
   getDoctrine,
@@ -272,6 +273,22 @@ export function MandateZeroMvp() {
     [game.doctrine, game.pressure, intelProfile.variance],
   );
   const allSeeds = useMemo(() => [...BUILT_IN_DEMO_SEEDS, ...customSeeds], [customSeeds]);
+  const optionOutcomeEstimates = useMemo(() => {
+    const entries = scenario.options.map((option) => [
+      option.id,
+      estimateActionOutcome(game, option, scenario.id),
+    ]);
+    return Object.fromEntries(entries);
+  }, [
+    game.doctrine,
+    game.pressure,
+    game.resources.intel,
+    game.scenarioId,
+    game.seedText,
+    game.turn,
+    scenario.id,
+    scenario.options,
+  ]);
   const upcomingEffects = useMemo(
     () =>
       game.effectsQueue
@@ -831,8 +848,9 @@ export function MandateZeroMvp() {
           hotRegions={hotRegions}
           criticalRegions={criticalRegions}
           upcomingEffects={upcomingEffects}
-          outcomeVariance={outcomeVariance}
+          optionOutcomeEstimates={optionOutcomeEstimates}
           canPlay={canPlay}
+          showDebugNumbers={showDebugNumbers}
           onChooseDoctrine={chooseDoctrine}
           onResolveCrisisOption={resolveCrisisOption}
         />
