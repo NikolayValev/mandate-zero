@@ -65,6 +65,13 @@ interface DemoSeed {
   custom?: boolean;
 }
 
+interface SavedRunPayload {
+  game: GameState;
+  scenarioId: string;
+  history: string[];
+  seedInput: string;
+}
+
 const STAT_META: Array<{ key: StatKey; label: string }> = [
   { key: "stability", label: "Stability" },
   { key: "treasury", label: "Treasury" },
@@ -387,6 +394,7 @@ const SCENARIOS: Scenario[] = [
 
 const DEFAULT_SEED = "demo-seed-001";
 const CUSTOM_SEEDS_STORAGE_KEY = "mandate-zero-demo-seeds-v1";
+const RUN_STORAGE_KEY = "mandate-zero-run-v1";
 const BUILT_IN_DEMO_SEEDS: DemoSeed[] = [
   { id: "baseline", name: "Baseline", value: DEFAULT_SEED },
   { id: "economic", name: "Economic Stress", value: "econ-shock-2026" },
@@ -671,6 +679,60 @@ function formatCost(cost?: Delta<ResourceKey>) {
     .join(", ");
 }
 
+function findScenarioById(id: string) {
+  return SCENARIOS.find((scenario) => scenario.id === id);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isGameState(value: unknown): value is GameState {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const stats = value.stats;
+  const resources = value.resources;
+  const cooldowns = value.cooldowns;
+
+  return (
+    typeof value.seedText === "string" &&
+    typeof value.rngState === "number" &&
+    typeof value.turn === "number" &&
+    typeof value.maxTurns === "number" &&
+    typeof value.phase === "string" &&
+    typeof value.message === "string" &&
+    typeof value.maxActionPoints === "number" &&
+    typeof value.actionPoints === "number" &&
+    isRecord(stats) &&
+    typeof stats.stability === "number" &&
+    typeof stats.treasury === "number" &&
+    typeof stats.influence === "number" &&
+    typeof stats.security === "number" &&
+    typeof stats.trust === "number" &&
+    isRecord(resources) &&
+    typeof resources.intel === "number" &&
+    typeof resources.supplies === "number" &&
+    typeof resources.capital === "number" &&
+    isRecord(cooldowns)
+  );
+}
+
+function isSavedRunPayload(value: unknown): value is SavedRunPayload {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isGameState(value.game) &&
+    typeof value.scenarioId === "string" &&
+    Array.isArray(value.history) &&
+    value.history.every((entry) => typeof entry === "string") &&
+    typeof value.seedInput === "string"
+  );
+}
+
 function isDemoSeedArray(value: unknown): value is DemoSeed[] {
   if (!Array.isArray(value)) {
     return false;
@@ -696,6 +758,7 @@ export function MandateZeroMvp() {
   const [newSeedValue, setNewSeedValue] = useState("");
   const [seedUiMessage, setSeedUiMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
+  const [runStorageReady, setRunStorageReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -725,6 +788,35 @@ export function MandateZeroMvp() {
   }, []);
 
   useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(RUN_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+
+      const parsed: unknown = JSON.parse(raw);
+      if (!isSavedRunPayload(parsed)) {
+        return;
+      }
+
+      const scenarioFromStorage = findScenarioById(parsed.scenarioId);
+      if (!scenarioFromStorage) {
+        return;
+      }
+
+      setGame(parsed.game);
+      setScenario(scenarioFromStorage);
+      setHistory(parsed.history);
+      setSeedInput(parsed.seedInput);
+      setSeedUiMessage("Loaded saved local run.");
+    } catch {
+      // Ignore invalid saved run payloads.
+    } finally {
+      setRunStorageReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(
       CUSTOM_SEEDS_STORAGE_KEY,
       JSON.stringify(
@@ -736,6 +828,20 @@ export function MandateZeroMvp() {
       ),
     );
   }, [customDemoSeeds]);
+
+  useEffect(() => {
+    if (!runStorageReady) {
+      return;
+    }
+
+    const payload: SavedRunPayload = {
+      game,
+      scenarioId: scenario.id,
+      history,
+      seedInput,
+    };
+    window.localStorage.setItem(RUN_STORAGE_KEY, JSON.stringify(payload));
+  }, [game, history, runStorageReady, scenario.id, seedInput]);
 
   const allDemoSeeds = useMemo(
     () => [...BUILT_IN_DEMO_SEEDS, ...customDemoSeeds],
@@ -783,6 +889,16 @@ export function MandateZeroMvp() {
   const removeDemoSeed = (seedId: string) => {
     setCustomDemoSeeds((prev) => prev.filter((seed) => seed.id !== seedId));
     setSeedUiMessage("Removed demo seed.");
+  };
+
+  const clearLocalData = () => {
+    window.localStorage.removeItem(CUSTOM_SEEDS_STORAGE_KEY);
+    window.localStorage.removeItem(RUN_STORAGE_KEY);
+    setCustomDemoSeeds([]);
+    setNewSeedName("");
+    setNewSeedValue("");
+    startRunWithSeed(DEFAULT_SEED);
+    setSeedUiMessage("Cleared all local demo data.");
   };
 
   const statusVariant = useMemo(() => {
@@ -897,96 +1013,114 @@ export function MandateZeroMvp() {
           </div>
 
           <div className="space-y-3">
-            <div className="space-y-4 rounded-lg border p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Demo Seeds
-              </p>
-
-              <div className="grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-end">
+            <details className="group rounded-lg border p-4">
+              <summary className="flex cursor-pointer list-none items-center justify-between">
                 <div>
-                  <Label htmlFor="seed-input">Current Seed</Label>
-                  <Input
-                    id="seed-input"
-                    value={seedInput}
-                    onChange={(event) => setSeedInput(event.target.value)}
-                    placeholder={DEFAULT_SEED}
-                  />
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Demo Seeds
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {allDemoSeeds.length} saved presets
+                  </p>
                 </div>
-                <Button onClick={restart} variant="outline">
-                  Restart Seeded Run
-                </Button>
-                <Button
-                  onClick={() => {
-                    startRunWithSeed(DEFAULT_SEED);
-                    setSeedUiMessage("Reset to default demo seed.");
-                  }}
-                  variant="secondary"
-                >
-                  Reset Default Seed
-                </Button>
-              </div>
+                <span className="text-xs text-muted-foreground group-open:hidden">
+                  Expand
+                </span>
+                <span className="hidden text-xs text-muted-foreground group-open:inline">
+                  Collapse
+                </span>
+              </summary>
 
-              <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto] md:items-end">
-                <div>
-                  <Label htmlFor="new-seed-name">New Seed Name</Label>
-                  <Input
-                    id="new-seed-name"
-                    value={newSeedName}
-                    onChange={(event) => setNewSeedName(event.target.value)}
-                    placeholder="My Demo Path"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="new-seed-value">New Seed Value</Label>
-                  <Input
-                    id="new-seed-value"
-                    value={newSeedValue}
-                    onChange={(event) => setNewSeedValue(event.target.value)}
-                    placeholder={seedInput}
-                  />
-                </div>
-                <Button onClick={addDemoSeed}>Add Demo Seed</Button>
-              </div>
-
-              {seedUiMessage ? (
-                <p className="text-xs text-muted-foreground">{seedUiMessage}</p>
-              ) : null}
-
-              <div className="space-y-2">
-                {allDemoSeeds.map((seed) => (
-                  <div
-                    key={seed.id}
-                    className="flex items-center justify-between gap-2 rounded-md border p-2"
+              <div className="mt-4 space-y-4">
+                <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto] md:items-end">
+                  <div>
+                    <Label htmlFor="seed-input">Current Seed</Label>
+                    <Input
+                      id="seed-input"
+                      value={seedInput}
+                      onChange={(event) => setSeedInput(event.target.value)}
+                      placeholder={DEFAULT_SEED}
+                    />
+                  </div>
+                  <Button onClick={restart} variant="outline">
+                    Restart Seeded Run
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      startRunWithSeed(DEFAULT_SEED);
+                      setSeedUiMessage("Reset to default demo seed.");
+                    }}
+                    variant="secondary"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{seed.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{seed.value}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          startRunWithSeed(seed.value);
-                          setSeedUiMessage(`Loaded seed '${seed.name}'.`);
-                        }}
-                      >
-                        Load
-                      </Button>
-                      {seed.custom ? (
+                    Reset Default Seed
+                  </Button>
+                  <Button onClick={clearLocalData} variant="destructive">
+                    Clear Local Data
+                  </Button>
+                </div>
+
+                <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto] md:items-end">
+                  <div>
+                    <Label htmlFor="new-seed-name">New Seed Name</Label>
+                    <Input
+                      id="new-seed-name"
+                      value={newSeedName}
+                      onChange={(event) => setNewSeedName(event.target.value)}
+                      placeholder="My Demo Path"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="new-seed-value">New Seed Value</Label>
+                    <Input
+                      id="new-seed-value"
+                      value={newSeedValue}
+                      onChange={(event) => setNewSeedValue(event.target.value)}
+                      placeholder={seedInput}
+                    />
+                  </div>
+                  <Button onClick={addDemoSeed}>Add Demo Seed</Button>
+                </div>
+
+                {seedUiMessage ? (
+                  <p className="text-xs text-muted-foreground">{seedUiMessage}</p>
+                ) : null}
+
+                <div className="space-y-2">
+                  {allDemoSeeds.map((seed) => (
+                    <div
+                      key={seed.id}
+                      className="flex items-center justify-between gap-2 rounded-md border p-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{seed.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{seed.value}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          variant="destructive"
-                          onClick={() => removeDemoSeed(seed.id)}
+                          variant="outline"
+                          onClick={() => {
+                            startRunWithSeed(seed.value);
+                            setSeedUiMessage(`Loaded seed '${seed.name}'.`);
+                          }}
                         >
-                          Remove
+                          Load
                         </Button>
-                      ) : null}
+                        {seed.custom ? (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => removeDemoSeed(seed.id)}
+                          >
+                            Remove
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            </details>
             <p className="text-sm text-muted-foreground">{game.message}</p>
           </div>
         </CardContent>

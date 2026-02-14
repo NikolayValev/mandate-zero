@@ -1,7 +1,5 @@
-import { AuthButton } from "@/components/auth-button";
 import { MandateZeroMvp } from "@/components/mandate-zero-mvp";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { hasEnvVars } from "@/lib/utils";
 
 export default function Home() {
   return (
@@ -17,7 +15,6 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-3">
               <ThemeSwitcher />
-              {hasEnvVars ? <AuthButton /> : null}
             </div>
           </div>
         </nav>
