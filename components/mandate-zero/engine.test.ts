@@ -3,8 +3,10 @@ import { SCENARIOS } from "./data";
 import {
   applyActorEffects,
   applyEffectsQueueForTurn,
+  computeTrend,
   computeSystemCoupling,
   createInitialGame,
+  estimateActionOutcome,
   evaluateThresholdTriggers,
   isDemoSeedArray,
   isGameStateLike,
@@ -14,7 +16,9 @@ import {
   queueDelayedEffects,
   resolvePendingEffects,
   rollUncertainStatEffects,
+  sampleActionOutcome,
   simulateRegions,
+  toTier,
 } from "./engine";
 import type { PendingEffect, ScenarioOption } from "./types";
 
@@ -39,6 +43,23 @@ describe("engine seed behavior", () => {
     const previous = SCENARIOS[0].id;
     const picked = pickScenario(previous, 123456789);
     expect(picked.scenarioId).not.toBe(previous);
+  });
+});
+
+describe("engine qualitative state helpers", () => {
+  it("maps stat values into qualitative tiers", () => {
+    expect(toTier(10).label).toBe("Critical");
+    expect(toTier(38).label).toBe("Fragile");
+    expect(toTier(50).label).toBe("Unstable");
+    expect(toTier(72).label).toBe("Stable");
+    expect(toTier(94).label).toBe("Strong");
+  });
+
+  it("computes direction and accelerating momentum from history", () => {
+    expect(computeTrend([55]).direction).toBe("flat");
+    expect(computeTrend([60, 58]).direction).toBe("down");
+    expect(computeTrend([60, 58, 56]).momentum).toBe("accelerating");
+    expect(computeTrend([48, 48, 49]).direction).toBe("up");
   });
 });
 
@@ -141,6 +162,27 @@ describe("engine effect resolution", () => {
     expect(first.applied).toHaveLength(1);
     expect(first.remaining).toHaveLength(1);
     expect(first.statEffects.trust).toBe(-2);
+  });
+
+  it("estimates deterministic outcome ranges from scoped action rng", () => {
+    const game = createInitialGame("range-seed");
+    const option = SCENARIOS[0].options[0];
+    const first = estimateActionOutcome(game, option, SCENARIOS[0].id);
+    const second = estimateActionOutcome(game, option, SCENARIOS[0].id);
+    expect(first).toEqual(second);
+    expect(first.length).toBeGreaterThan(0);
+    expect(first[0].confidence).toMatch(/High|Medium|Low/);
+  });
+
+  it("samples deterministic action outcomes by scoped seed", () => {
+    const game = createInitialGame("sample-seed");
+    const action = {
+      id: "sample-action",
+      statEffects: { trust: -4, security: 3 },
+    };
+    const first = sampleActionOutcome(game, action, game.scenarioId);
+    const second = sampleActionOutcome(game, action, game.scenarioId);
+    expect(first.effects).toEqual(second.effects);
   });
 });
 
