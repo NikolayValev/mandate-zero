@@ -325,15 +325,23 @@ export function MandateZeroMvp() {
   );
   const allSeeds = useMemo(() => [...BUILT_IN_DEMO_SEEDS, ...customSeeds], [customSeeds]);
   const optionOutcomeEstimates = useMemo(() => {
+    const outcomeState = {
+      seedText: game.seedText,
+      turn: game.turn,
+      scenarioId: game.scenarioId,
+      resources: game.resources,
+      doctrine: game.doctrine,
+      pressure: game.pressure,
+    };
     const entries = scenario.options.map((option) => [
       option.id,
-      estimateActionOutcome(game, option, scenario.id),
+      estimateActionOutcome(outcomeState, option, scenario.id),
     ]);
     return Object.fromEntries(entries);
   }, [
     game.doctrine,
     game.pressure,
-    game.resources.intel,
+    game.resources,
     game.scenarioId,
     game.seedText,
     game.turn,

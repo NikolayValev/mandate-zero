@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { DOCTRINES, RESOURCE_META, STAT_META } from "./data";
+import { DOCTRINES, STAT_META } from "./data";
 import { computeTrend, riskVariant, toPressureState } from "./engine";
 import type {
   DoctrineId,
