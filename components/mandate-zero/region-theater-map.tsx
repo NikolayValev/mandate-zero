@@ -150,7 +150,7 @@ export function RegionTheaterMap({ game }: RegionTheaterMapProps) {
                   <p className="text-[10px] font-semibold uppercase tracking-wide">{layout.label}</p>
                   <p className="text-xs">Stress {stress}</p>
                   <p className="text-[10px] text-white/90">
-                    Pressure {pressure} | Loyalty {loyalty}
+                    {pressure}% / {loyalty}%
                   </p>
                   {stressDelta !== 0 ? (
                     <p className="mt-1 text-[10px] text-white/90">
@@ -193,26 +193,28 @@ export function RegionTheaterMap({ game }: RegionTheaterMapProps) {
           Destabilization Height {focusedAltitude}
         </p>
         <p className="mt-1 text-[11px] text-white/80">
-          Actor lens: {focusedActorKey} | Pressure {focusedActor.pressure} | Loyalty {focusedActor.loyalty}
+          Actor lens: {focusedActorKey} | {focusedActor.pressure}% / {focusedActor.loyalty}%
         </p>
 
         <div className="mt-2 space-y-2">
           <div>
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-white/70">Pressure</p>
-            <div className="h-2 rounded-full bg-white/20">
+            <div className="h-4 rounded-full bg-white/20">
               <div
-                className="h-2 rounded-full bg-rose-400 transition-all"
+                className="flex h-4 items-center justify-end rounded-full bg-rose-400 px-2 text-[10px] font-semibold text-rose-950 transition-all"
                 style={{ width: `${focusedActor.pressure}%` }}
-              />
+              >
+                {focusedActor.pressure}%
+              </div>
             </div>
           </div>
           <div>
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-white/70">Loyalty</p>
-            <div className="h-2 rounded-full bg-white/20">
+            <div className="h-4 rounded-full bg-white/20">
               <div
-                className="h-2 rounded-full bg-emerald-400 transition-all"
+                className="flex h-4 items-center justify-end rounded-full bg-emerald-400 px-2 text-[10px] font-semibold text-emerald-950 transition-all"
                 style={{ width: `${focusedActor.loyalty}%` }}
-              />
+              >
+                {focusedActor.loyalty}%
+              </div>
             </div>
           </div>
         </div>

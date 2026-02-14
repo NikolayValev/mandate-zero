@@ -23,7 +23,7 @@ export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
       <CardHeader>
         <CardTitle>Actors and Regions</CardTitle>
         <CardDescription className="hidden sm:block">
-          Loyalty and pressure shape region severity. Spatial stress now renders in a 3D theater.
+          Actor conditions shape region severity. Spatial stress now renders in a 3D theater.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -32,8 +32,6 @@ export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
         <div className="grid gap-2 lg:grid-cols-2">
           {ACTOR_META.map((actor) => {
             const state = game.actors[actor.key];
-            const pressureDelta = game.lastActorPressureDelta[actor.key] ?? 0;
-            const loyaltyDelta = game.lastActorLoyaltyDelta[actor.key] ?? 0;
             return (
               <div
                 key={actor.key}
@@ -41,17 +39,9 @@ export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
               >
                 <div className="mb-2 flex items-center justify-between text-xs">
                   <span className="font-medium">{actor.label}</span>
-                  <span>
-                    Loyalty {state.loyalty} | Pressure {state.pressure}
-                    {pressureDelta !== 0 ? ` (${pressureDelta > 0 ? "+" : ""}${pressureDelta})` : ""}
-                    {loyaltyDelta !== 0 ? ` / ${loyaltyDelta > 0 ? "+" : ""}${loyaltyDelta}` : ""}
-                  </span>
                 </div>
                 <div className="space-y-2">
                   <div>
-                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Loyalty
-                    </p>
                     <div className="h-4 rounded-full bg-muted/70">
                       <div
                         className="flex h-4 items-center justify-end rounded-full bg-emerald-500 px-2 text-[10px] font-semibold text-emerald-50 transition-all"
@@ -62,9 +52,6 @@ export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
                     </div>
                   </div>
                   <div>
-                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                      Pressure
-                    </p>
                     <div className="h-4 rounded-full bg-muted/70">
                       <div
                         className="flex h-4 items-center justify-end rounded-full bg-rose-500 px-2 text-[10px] font-semibold text-rose-50 transition-all"
@@ -97,7 +84,7 @@ export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
                   </Badge>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  {actorKey} influence: pressure {actor.pressure}, loyalty {actor.loyalty}
+                  {actorKey} influence: {actor.pressure}% / {actor.loyalty}%
                 </div>
               </div>
             );

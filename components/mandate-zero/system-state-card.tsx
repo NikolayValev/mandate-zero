@@ -28,20 +28,16 @@ export function SystemStateCard({ game, warnings }: SystemStateCardProps) {
       <CardContent className="space-y-4">
         {STAT_META.map((stat) => {
           const value = game.stats[stat.key];
-          const delta = game.lastStatDelta[stat.key] ?? 0;
           return (
             <div key={stat.key} className="space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span>{stat.label}</span>
-                <span className="font-medium">
-                  {value} {delta !== 0 ? `(${delta > 0 ? "+" : ""}${delta})` : ""}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-muted">
+              <div className="text-sm">{stat.label}</div>
+              <div className="h-4 rounded-full bg-muted">
                 <div
-                  className="h-2 rounded-full bg-primary transition-all"
+                  className="flex h-4 items-center justify-end rounded-full bg-primary px-2 text-[10px] font-semibold text-primary-foreground transition-all"
                   style={{ width: `${value}%` }}
-                />
+                >
+                  {value}%
+                </div>
               </div>
             </div>
           );
