@@ -47,12 +47,14 @@ import {
   reduceCooldowns,
   rollUncertainStatEffects,
   simulateRegions,
+  snapshotCoreSystems,
   summarizeDelta,
 } from "@/components/mandate-zero/engine";
 import type {
   ActorEffects,
   CausalityEntry,
   CausalityStep,
+  CoreSystemKey,
   Delta,
   DemoSeed,
   DoctrineId,
@@ -99,17 +101,54 @@ function isQueuedEffectArray(value: unknown): value is QueuedEffect[] {
   );
 }
 
+function isSystemSnapshot(
+  value: unknown,
+): value is Record<CoreSystemKey, number> {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    typeof value.stability === "number" &&
+    typeof value.treasury === "number" &&
+    typeof value.influence === "number" &&
+    typeof value.security === "number" &&
+    typeof value.trust === "number" &&
+    typeof value.pressure === "number"
+  );
+}
+
+function isSystemHistoryArray(value: unknown): value is Array<Record<CoreSystemKey, number>> {
+  return Array.isArray(value) && value.every((entry) => isSystemSnapshot(entry));
+}
+
 function hydrateLoadedGame(rawGame: GameState): GameState {
   const fallback = createInitialGame(rawGame.seedText);
-  const raw = rawGame as GameState & { effectsQueue?: unknown; thresholdsFired?: unknown };
+  const raw = rawGame as GameState & {
+    effectsQueue?: unknown;
+    thresholdsFired?: unknown;
+    lastTurnSystems?: unknown;
+    systemHistory?: unknown;
+  };
+  const nextStats = rawGame.stats ?? fallback.stats;
+  const nextPressure = typeof rawGame.pressure === "number" ? rawGame.pressure : fallback.pressure;
+  const synthesizedSnapshot = snapshotCoreSystems(nextStats, nextPressure);
+  const lastTurnSystems = isSystemSnapshot(raw.lastTurnSystems)
+    ? raw.lastTurnSystems
+    : synthesizedSnapshot;
+  const systemHistory = isSystemHistoryArray(raw.systemHistory)
+    ? raw.systemHistory.slice(-8)
+    : [lastTurnSystems, synthesizedSnapshot].slice(-8);
+
   return {
     ...fallback,
     ...rawGame,
-    pressure: typeof rawGame.pressure === "number" ? rawGame.pressure : fallback.pressure,
+    pressure: nextPressure,
     turnStage: rawGame.turnStage ?? fallback.turnStage,
     regionMemory: rawGame.regionMemory ?? fallback.regionMemory,
     effectsQueue: isQueuedEffectArray(raw.effectsQueue) ? raw.effectsQueue : fallback.effectsQueue,
     thresholdsFired: isRecord(raw.thresholdsFired) ? raw.thresholdsFired : fallback.thresholdsFired,
+    lastTurnSystems,
+    systemHistory,
   };
 }
 
@@ -125,6 +164,21 @@ export function MandateZeroMvp() {
   const [newSeedValue, setNewSeedValue] = useState("");
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
+
+  const withSystemHistory = (
+    previous: GameState,
+    stats: Record<StatKey, number>,
+    pressure: number,
+  ) => {
+    const previousSnapshot =
+      previous.systemHistory[previous.systemHistory.length - 1] ??
+      snapshotCoreSystems(previous.stats, previous.pressure);
+    const nextSnapshot = snapshotCoreSystems(stats, pressure);
+    return {
+      lastTurnSystems: previousSnapshot,
+      systemHistory: [...previous.systemHistory, nextSnapshot].slice(-8),
+    };
+  };
 
   const appendCausalityEntry = (
     title: string,
@@ -261,6 +315,7 @@ export function MandateZeroMvp() {
       stats,
       resources,
       actors: actorApplication.actors,
+      ...withSystemHistory(prev, stats, prev.pressure),
       message: `${selected.title} doctrine selected. Strategic tradeoffs are now locked in.`,
       lastStatDelta: selected.startEffects.statEffects ?? {},
       lastResourceDelta: selected.startEffects.resourceEffects ?? {},
@@ -301,6 +356,7 @@ export function MandateZeroMvp() {
       stats,
       resources,
       actors: actorApplication.actors,
+      ...withSystemHistory(prev, stats, prev.pressure),
       activePolicies: [...prev.activePolicies, policy.id],
       maxActionPoints,
       actionPoints,
@@ -416,6 +472,7 @@ export function MandateZeroMvp() {
       stats,
       resources,
       actors: actorApplication.actors,
+      ...withSystemHistory(prev, stats, prev.pressure),
       actionPoints,
       cooldowns,
       effectsQueue: [...prev.effectsQueue, ...queuedEffects],
@@ -645,6 +702,7 @@ export function MandateZeroMvp() {
       regions,
       regionMemory,
       pressure,
+      ...withSystemHistory(prev, stats, pressure),
       actionPoints: prev.maxActionPoints,
       cooldowns,
       effectsQueue,
