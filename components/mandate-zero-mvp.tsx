@@ -157,7 +157,9 @@ export function MandateZeroMvp() {
   const [history, setHistory] = useState<string[]>([]);
   const [causalityHistory, setCausalityHistory] = useState<CausalityEntry[]>([]);
   const [selectedCausalityId, setSelectedCausalityId] = useState<string | null>(null);
+  const [highlightedSystems, setHighlightedSystems] = useState<CoreSystemKey[]>([]);
   const [highlightedRegions, setHighlightedRegions] = useState<RegionKey[]>([]);
+  const [showDebugNumbers, setShowDebugNumbers] = useState(false);
   const [seedInput, setSeedInput] = useState(DEFAULT_SEED);
   const [customSeeds, setCustomSeeds] = useState<DemoSeed[]>([]);
   const [newSeedName, setNewSeedName] = useState("");
@@ -291,6 +293,7 @@ export function MandateZeroMvp() {
     setHistory([]);
     setCausalityHistory([]);
     setSelectedCausalityId(null);
+    setHighlightedSystems([]);
     setHighlightedRegions([]);
     setSeedMessage(`Loaded seed '${normalizedSeed}'.`);
   };
@@ -850,7 +853,13 @@ export function MandateZeroMvp() {
           allSeeds={allSeeds}
           onRemoveCustomSeed={removeCustomSeed}
         />
-        <SystemStateCard game={game} warnings={warnings} />
+        <SystemStateCard
+          game={game}
+          warnings={warnings}
+          highlightedSystems={highlightedSystems}
+          showDebugNumbers={showDebugNumbers}
+          onToggleDebugNumbers={() => setShowDebugNumbers((prev) => !prev)}
+        />
         <ActorsRegionsCard game={game} highlightedRegions={highlightedRegions} />
       </div>
     </div>
