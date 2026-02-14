@@ -205,6 +205,8 @@ export const STRATEGIC_ACTIONS: StrategicAction[] = [
     id: "intel-sweep",
     title: "Intel Sweep",
     description: "Reveal threats and increase confidence in projections.",
+    narrative:
+      "Field teams flood comms channels and border checkpoints overnight, trying to separate rumor from actionable threat.",
     riskHint: "Signals can expose internal fractures if leaks follow.",
     apCost: 1,
     cooldown: 2,
@@ -220,6 +222,8 @@ export const STRATEGIC_ACTIONS: StrategicAction[] = [
     id: "emergency-subsidy",
     title: "Emergency Subsidy",
     description: "Buffer unrest quickly with expensive social relief.",
+    narrative:
+      "You release emergency cash and fuel vouchers before dawn, betting that immediate relief buys social breathing room.",
     riskHint: "Buys calm now but can amplify inflation and budget stress.",
     apCost: 1,
     cooldown: 2,
@@ -237,6 +241,8 @@ export const STRATEGIC_ACTIONS: StrategicAction[] = [
     id: "reserve-mobilization",
     title: "Reserve Mobilization",
     description: "Boost readiness and deterrence with long-term backlash.",
+    narrative:
+      "Reserve brigades are called to staging zones and the streets read it as both reassurance and warning.",
     riskHint: "Visible force posture can trigger civilian backlash later.",
     apCost: 1,
     cooldown: 3,
@@ -254,6 +260,8 @@ export const STRATEGIC_ACTIONS: StrategicAction[] = [
     id: "media-briefing",
     title: "Media Briefing Blitz",
     description: "Shape narrative quickly before the crisis spiral.",
+    narrative:
+      "You put trusted spokespeople on every major channel to lock in a coherent story before panic sets the tone.",
     riskHint: "Narrative control can fail if facts shift next turn.",
     apCost: 1,
     cooldown: 2,
@@ -271,6 +279,8 @@ export const SCENARIOS: Scenario[] = [
     title: "Port Worker Strike",
     description:
       "Cargo traffic is blocked. Food and fuel buffers are thinning in two regions.",
+    briefing:
+      "Dock gates are chained and cranes are idle. Every hour of delay pushes households and factories closer to rationing.",
     severity: 3,
     tags: ["labor", "logistics"],
     regionTargets: ["coast", "industry"],
@@ -279,6 +289,8 @@ export const SCENARIOS: Scenario[] = [
         id: "negotiate-terms",
         title: "Negotiate Wage Settlement",
         description: "Costly compromise to stabilize supply chains.",
+        narrative:
+          "You convene union leaders, port operators, and regional governors for an emergency overnight settlement to reopen lanes.",
         risk: "Medium",
         factionReaction: "Banks +, Public +, Military neutral",
         tags: ["negotiation", "relief"],
@@ -293,6 +305,8 @@ export const SCENARIOS: Scenario[] = [
         id: "security-crackdown",
         title: "Security Crackdown",
         description: "Immediate throughput recovery, sharp legitimacy hit.",
+        narrative:
+          "Riot units clear terminals and escort replacement crews through picket lines while cameras broadcast the confrontation.",
         risk: "High",
         factionReaction: "Military ++, Public --, Media outrage",
         tags: ["repression", "force"],
@@ -320,6 +334,8 @@ export const SCENARIOS: Scenario[] = [
         id: "import-contractors",
         title: "Import External Contractors",
         description: "Partial recovery with long-term coordination risk.",
+        narrative:
+          "You charter private logistics crews from abroad to restore movement, but locals treat it as a breach of trust.",
         risk: "Medium",
         factionReaction: "Banks +, Media -, Public -",
         tags: ["privatization", "logistics"],
@@ -337,6 +353,8 @@ export const SCENARIOS: Scenario[] = [
     title: "Intelligence Breach",
     description:
       "Operational plans leaked overnight. Rival blocs are testing your response speed.",
+    briefing:
+      "Internal files are circulating on encrypted channels and foreign desks are probing your command seams in real time.",
     severity: 4,
     tags: ["cyber", "intelligence", "governance"],
     regionTargets: ["capital", "border"],
@@ -345,6 +363,8 @@ export const SCENARIOS: Scenario[] = [
         id: "counter-operation",
         title: "Counter-Operation",
         description: "Retaliate fast and rebuild deterrence.",
+        narrative:
+          "You authorize an immediate counterstrike package to signal capability before rivals frame the breach as weakness.",
         risk: "High",
         factionReaction: "Military +, Media -, Public uncertain",
         tags: ["retaliation", "security"],
@@ -359,6 +379,8 @@ export const SCENARIOS: Scenario[] = [
         id: "public-inquiry",
         title: "Public Inquiry",
         description: "Slow transparent response with legitimacy upside.",
+        narrative:
+          "You open hearings and publish timelines, wagering that visible accountability will outlast short-term embarrassment.",
         risk: "Low",
         factionReaction: "Public ++, Banks neutral, Military -",
         tags: ["transparency", "oversight"],
@@ -373,6 +395,8 @@ export const SCENARIOS: Scenario[] = [
         id: "bury-the-story",
         title: "Suppress the Story",
         description: "Short-term calm with hidden blowback risk.",
+        narrative:
+          "Editors receive legal threats and takedown orders while your team races to erase traces before a second leak emerges.",
         risk: "High",
         factionReaction: "Media --, Public --, Banks neutral",
         tags: ["coverup", "repression"],
@@ -400,6 +424,8 @@ export const SCENARIOS: Scenario[] = [
     title: "Regional Bank Run",
     description:
       "Depositors are panicking. Liquidity lines are close to seizure in urban corridors.",
+    briefing:
+      "Queues wrap around bank blocks before sunrise, and each rumor of insolvency pulls more cash out of the system.",
     severity: 5,
     tags: ["finance", "liquidity"],
     regionTargets: ["capital", "coast", "industry"],
@@ -408,6 +434,8 @@ export const SCENARIOS: Scenario[] = [
         id: "guarantee-deposits",
         title: "Guarantee Deposits",
         description: "Stabilize confidence at major fiscal cost.",
+        narrative:
+          "You guarantee household deposits on live broadcast, aiming to stop withdrawals before payment rails lock up.",
         risk: "Medium",
         factionReaction: "Public +, Banks +, Inflation risk rises",
         tags: ["bailout", "relief"],
@@ -434,6 +462,8 @@ export const SCENARIOS: Scenario[] = [
         id: "freeze-transfers",
         title: "Freeze Large Transfers",
         description: "Contain outflows by force; public anger is likely.",
+        narrative:
+          "Emergency controls halt high-value transfers and freeze accounts, trading panic speed for immediate political fury.",
         risk: "High",
         factionReaction: "Banks +, Public --, Media --",
         tags: ["controls", "repression"],
@@ -461,6 +491,8 @@ export const SCENARIOS: Scenario[] = [
         id: "force-mergers",
         title: "Force Emergency Mergers",
         description: "Technocratic containment with elite backlash.",
+        narrative:
+          "You force weak institutions into emergency mergers, preserving core banking services while angering entrenched elites.",
         risk: "Medium",
         factionReaction: "Banks -, Media -, Public neutral",
         tags: ["consolidation", "technocratic"],
@@ -478,6 +510,8 @@ export const SCENARIOS: Scenario[] = [
     title: "Border Raid Alert",
     description:
       "Hostile probes are escalating at the frontier. Local command requests authority.",
+    briefing:
+      "Forward posts are exchanging fire and district governors are demanding a clear chain of command before nightfall.",
     severity: 4,
     tags: ["security", "border"],
     regionTargets: ["border", "north"],
@@ -486,6 +520,8 @@ export const SCENARIOS: Scenario[] = [
         id: "full-mobilization",
         title: "Full Mobilization",
         description: "Max readiness at high social and fiscal cost.",
+        narrative:
+          "You trigger full reserve call-ups and visible force projection, prioritizing deterrence over domestic calm.",
         risk: "High",
         factionReaction: "Military ++, Public -, Banks -",
         tags: ["mobilization", "security"],
@@ -500,6 +536,8 @@ export const SCENARIOS: Scenario[] = [
         id: "precision-response",
         title: "Precision Response",
         description: "Targeted deterrence with controlled collateral risk.",
+        narrative:
+          "Special units execute tightly scoped strikes to contain escalation while avoiding a broader frontier war.",
         risk: "Medium",
         factionReaction: "Military +, Media neutral, Public -",
         tags: ["precision", "security"],
@@ -511,6 +549,8 @@ export const SCENARIOS: Scenario[] = [
         id: "demand-talks",
         title: "Demand Talks",
         description: "De-escalation attempt that may be read as weakness.",
+        narrative:
+          "You push emergency talks through intermediaries, buying time but risking the image of a hesitant command.",
         risk: "Medium",
         factionReaction: "Public +, Military -, Media split",
         tags: ["diplomacy", "deescalation"],
@@ -528,6 +568,8 @@ export const SCENARIOS: Scenario[] = [
     title: "Cyber Grid Blackout",
     description:
       "Payment rails and utilities are unstable across multiple districts.",
+    briefing:
+      "ATMs fail, traffic systems flicker, and hospitals are switching to backup power while misinformation spreads faster than fixes.",
     severity: 4,
     tags: ["cyber", "utilities", "infrastructure"],
     regionTargets: ["capital", "industry", "south"],
@@ -536,6 +578,8 @@ export const SCENARIOS: Scenario[] = [
         id: "offline-protocol",
         title: "Activate Offline Protocol",
         description: "Stabilize essentials while sacrificing throughput.",
+        narrative:
+          "You shift key services to manual and offline contingencies, keeping essentials alive while commerce slows to a crawl.",
         risk: "Low",
         factionReaction: "Public +, Banks -, Media neutral",
         tags: ["continuity", "relief"],
@@ -547,6 +591,8 @@ export const SCENARIOS: Scenario[] = [
         id: "foreign-security-firm",
         title: "Hire Foreign Security Firm",
         description: "Fast patching with sovereignty backlash risk.",
+        narrative:
+          "A foreign incident-response team is flown in overnight, promising rapid containment at a heavy legitimacy cost.",
         risk: "High",
         factionReaction: "Banks +, Public -, Media -",
         tags: ["outsourcing", "security"],
@@ -562,6 +608,8 @@ export const SCENARIOS: Scenario[] = [
         id: "domestic-taskforce",
         title: "Build Domestic Taskforce",
         description: "Slower short-term response, stronger long-term capacity.",
+        narrative:
+          "You stand up a joint domestic taskforce to restore systems and train local operators for the next wave.",
         risk: "Medium",
         factionReaction: "Public +, Military +, Banks neutral",
         tags: ["capacity", "institutional"],
@@ -577,6 +625,8 @@ export const SCENARIOS: Scenario[] = [
     title: "Snap Election Shock",
     description:
       "A legal ruling accelerates elections and fractures coalition discipline.",
+    briefing:
+      "Campaign machinery wakes up instantly, coalition partners hedge, and every crisis move is now judged through an electoral lens.",
     severity: 3,
     tags: ["political", "legitimacy"],
     regionTargets: ["capital", "south"],
@@ -585,6 +635,8 @@ export const SCENARIOS: Scenario[] = [
         id: "campaign-mode",
         title: "Switch to Campaign Mode",
         description: "Consolidate base support and defer painful reforms.",
+        narrative:
+          "You pivot state messaging to campaign footing, protecting short-term legitimacy while postponing hard fixes.",
         risk: "Medium",
         factionReaction: "Public +, Media +, Banks -",
         tags: ["campaign", "short-term"],
@@ -600,6 +652,8 @@ export const SCENARIOS: Scenario[] = [
         id: "hard-reforms",
         title: "Force Hard Reforms",
         description: "Improve fiscal runway while inflaming social pressure.",
+        narrative:
+          "You pass austerity and structural reforms immediately, gambling that macro stability survives public anger.",
         risk: "High",
         factionReaction: "Banks +, Public --, Media -",
         tags: ["austerity", "reform"],
@@ -627,6 +681,8 @@ export const SCENARIOS: Scenario[] = [
         id: "unity-cabinet",
         title: "Form Unity Cabinet",
         description: "Reduce polarization while sacrificing agenda control.",
+        narrative:
+          "You invite rivals into a unity cabinet to cool the street, accepting slower policy and diluted command authority.",
         risk: "Low",
         factionReaction: "Public +, Media neutral, Military -",
         tags: ["coalition", "consensus"],

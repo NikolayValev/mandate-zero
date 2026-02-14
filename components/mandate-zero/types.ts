@@ -68,6 +68,7 @@ export interface ScenarioOption {
   id: string;
   title: string;
   description: string;
+  narrative?: string;
   riskHint?: string;
   risk: RiskLevel;
   factionReaction: string;
@@ -83,6 +84,7 @@ export interface Scenario {
   id: string;
   title: string;
   description: string;
+  briefing?: string;
   severity: number;
   tags?: string[];
   regionTargets: RegionKey[];
@@ -126,6 +128,7 @@ export interface StrategicAction {
   id: string;
   title: string;
   description: string;
+  narrative?: string;
   riskHint?: string;
   apCost: number;
   cooldown: number;
