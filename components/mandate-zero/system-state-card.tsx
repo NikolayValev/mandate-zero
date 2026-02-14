@@ -23,12 +23,12 @@ interface SystemStateCardProps {
 
 function trendArrow(direction: "up" | "down" | "flat") {
   if (direction === "up") {
-    return "↑";
+    return "UP";
   }
   if (direction === "down") {
-    return "↓";
+    return "DOWN";
   }
-  return "→";
+  return "FLAT";
 }
 
 export function SystemStateCard({

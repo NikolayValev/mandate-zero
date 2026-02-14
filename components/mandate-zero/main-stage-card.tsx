@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { DOCTRINES, STAT_META } from "./data";
 import { computeTrend, riskVariant, toPressureState } from "./engine";
+import { buildScenarioBrief, buildSituationExplanation } from "./situation-copy";
 import type {
   DoctrineId,
   GameState,
@@ -77,7 +78,11 @@ export function MainStageCard({
           ? "bg-yellow-500"
           : "bg-emerald-500";
   const pressureArrow =
-    pressureTrend.direction === "up" ? "↑" : pressureTrend.direction === "down" ? "↓" : "→";
+    pressureTrend.direction === "up"
+      ? "UP"
+      : pressureTrend.direction === "down"
+        ? "DOWN"
+        : "FLAT";
 
   return (
     <Card data-testid="main-stage-card">
@@ -138,9 +143,8 @@ export function MainStageCard({
             </div>
           </div>
           <h3 className="mt-2 text-lg font-semibold">{scenario.title}</h3>
-          <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
-            {scenario.description}
-          </p>
+          <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">Situation Brief</p>
+          <p className="mt-1 text-sm text-muted-foreground">{buildScenarioBrief(scenario)}</p>
           <p className="mt-2 text-xs text-muted-foreground">
             Spread preview: {hotRegions} hot regions, {criticalRegions} critical.
           </p>
@@ -189,12 +193,13 @@ export function MainStageCard({
                   </Badge>
                 </div>
               </div>
-              <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
-                Situation: {option.description}
+              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">Situation</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {buildSituationExplanation(scenario, option)}
               </p>
-              {option.riskHint ? (
-                <p className="mt-1 text-xs text-muted-foreground">Tension: {option.riskHint}</p>
-              ) : null}
+              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+                Projected Outcome Window
+              </p>
               <div className="mt-2 grid gap-1">
                 {(optionOutcomeEstimates[option.id] ?? []).slice(0, 4).map((estimate) => {
                   const statLabel = STAT_META.find((entry) => entry.key === estimate.system)?.label ?? estimate.system;
@@ -224,8 +229,8 @@ export function MainStageCard({
                     .join(" | ")}
                 </p>
               ) : null}
-              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
-                Faction reaction: {option.factionReaction}
+              <p className="mt-2 text-xs text-muted-foreground">
+                Stakeholder pulse: {option.factionReaction}
               </p>
             </button>
           ))}
@@ -236,3 +241,4 @@ export function MainStageCard({
     </Card>
   );
 }
+

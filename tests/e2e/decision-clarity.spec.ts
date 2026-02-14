@@ -6,7 +6,7 @@ test("decision cards show situations and ranges while hiding exact optimization 
   await chooseDoctrine(page, "technocrat");
 
   const firstOption = page.locator("[data-testid^='crisis-option-']").first();
-  await expect(firstOption).toContainText("Situation:");
+  await expect(firstOption).toContainText("Situation");
   await expect(firstOption).toContainText(/to [+-]?\d+/);
 
   await expect(page.getByText("Predicted stats:")).toHaveCount(0);

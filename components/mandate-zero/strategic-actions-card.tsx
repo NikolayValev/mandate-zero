@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { STAT_META, STRATEGIC_ACTIONS } from "./data";
 import { riskVariant } from "./engine";
+import { buildActionExplanation } from "./situation-copy";
 import type { OutcomeEstimate, QueuedEffect, StrategicAction } from "./types";
 
 interface StrategicActionsCardProps {
@@ -46,12 +47,13 @@ export function StrategicActionsCard({
                 <p className="font-medium">{action.title}</p>
                 <Badge variant={riskVariant(action.risk)}>Risk {action.risk}</Badge>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Situation: {action.description}</p>
-              {action.riskHint ? (
-                <p className="mt-1 text-xs text-muted-foreground">Tension: {action.riskHint}</p>
-              ) : null}
+              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">Situation</p>
+              <p className="mt-1 text-xs text-muted-foreground">{buildActionExplanation(action)}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 AP {apCost}, cooldown {action.cooldown}
+              </p>
+              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+                Projected Outcome Window
               </p>
               {(getActionOutcomeEstimate(action) ?? []).slice(0, 4).map((estimate) => {
                 const statLabel = STAT_META.find((entry) => entry.key === estimate.system)?.label ?? estimate.system;
