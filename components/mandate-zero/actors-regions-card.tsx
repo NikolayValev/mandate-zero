@@ -11,13 +11,14 @@ import {
 import { ACTOR_META, REGION_META } from "./data";
 import { regionClass } from "./engine";
 import { REGION_ACTOR_FOCUS, RegionTheaterMap } from "./region-theater-map";
-import type { GameState } from "./types";
+import type { GameState, RegionKey } from "./types";
 
 interface ActorsRegionsCardProps {
   game: GameState;
+  highlightedRegions: RegionKey[];
 }
 
-export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
+export function ActorsRegionsCard({ game, highlightedRegions }: ActorsRegionsCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -27,7 +28,7 @@ export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <RegionTheaterMap game={game} />
+        <RegionTheaterMap game={game} highlightedRegions={highlightedRegions} />
 
         <div className="grid gap-2 lg:grid-cols-2">
           {ACTOR_META.map((actor) => {
@@ -75,7 +76,9 @@ export function ActorsRegionsCard({ game }: ActorsRegionsCardProps) {
             return (
               <div
                 key={region.key}
-                className={`rounded-md border p-2 text-xs ${regionClass(stress)}`}
+                className={`rounded-md border p-2 text-xs ${regionClass(stress)} ${
+                  highlightedRegions.includes(region.key) ? "ring-2 ring-primary/60" : ""
+                }`}
               >
                 <div className="mb-1 flex items-center justify-between">
                   <span>{region.label}</span>

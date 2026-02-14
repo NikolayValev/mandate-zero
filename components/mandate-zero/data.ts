@@ -1,5 +1,6 @@
 import type {
   ActorKey,
+  CrisisFollowupRule,
   DemoSeed,
   Doctrine,
   PolicyCommitment,
@@ -11,7 +12,7 @@ import type {
 } from "./types";
 
 export const DEFAULT_SEED = "demo-seed-001";
-export const RUN_STORAGE_KEY = "mandate-zero-local-run-v2";
+export const RUN_STORAGE_KEY = "mandate-zero-local-run-v3";
 export const CUSTOM_SEEDS_STORAGE_KEY = "mandate-zero-local-seeds-v2";
 
 export const STAT_META: Array<{ key: StatKey; label: string }> = [
@@ -58,6 +59,19 @@ export const DOCTRINES: Doctrine[] = [
     description: "Higher planning accuracy, weaker grassroots legitimacy.",
     uncertaintyShift: -1,
     securityTrustPenalty: 2,
+    ruleMods: {
+      varianceBias: -1,
+      trustDecayModifier: 0,
+      actionApAdjustments: {
+        "intel-sweep": -1,
+        "emergency-subsidy": 1,
+      },
+      thresholdDanger: {
+        "trust-protests": 1.1,
+        "treasury-austerity": 1.25,
+        "security-insurgency": 0.9,
+      },
+    },
     startEffects: {
       statEffects: { treasury: 6, influence: 3, trust: -5 },
       resourceEffects: { intel: 4, capital: 2 },
@@ -73,6 +87,20 @@ export const DOCTRINES: Doctrine[] = [
     description: "Public momentum and volatility, weaker fiscal discipline.",
     uncertaintyShift: 1,
     securityTrustPenalty: 3,
+    ruleMods: {
+      varianceBias: 1,
+      trustDecayModifier: -1,
+      actionApAdjustments: {
+        "emergency-subsidy": -1,
+        "media-briefing": -1,
+        "reserve-mobilization": 1,
+      },
+      thresholdDanger: {
+        "trust-protests": 0.8,
+        "treasury-austerity": 1.3,
+        "security-insurgency": 1.2,
+      },
+    },
     startEffects: {
       statEffects: { trust: 8, stability: 3, treasury: -6 },
       resourceEffects: { capital: 3 },
@@ -88,6 +116,19 @@ export const DOCTRINES: Doctrine[] = [
     description: "Strong security posture, rising civil resentment.",
     uncertaintyShift: 0,
     securityTrustPenalty: 1,
+    ruleMods: {
+      varianceBias: 0,
+      trustDecayModifier: 1,
+      actionApAdjustments: {
+        "reserve-mobilization": -1,
+        "media-briefing": 1,
+      },
+      thresholdDanger: {
+        "trust-protests": 1.35,
+        "treasury-austerity": 1.1,
+        "security-insurgency": 0.8,
+      },
+    },
     startEffects: {
       statEffects: { security: 9, influence: 2, trust: -6 },
       resourceEffects: { supplies: 3, intel: 1 },
@@ -227,6 +268,7 @@ export const SCENARIOS: Scenario[] = [
     description:
       "Cargo traffic is blocked. Food and fuel buffers are thinning in two regions.",
     severity: 3,
+    tags: ["labor", "logistics"],
     regionTargets: ["coast", "industry"],
     options: [
       {
@@ -235,6 +277,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Costly compromise to stabilize supply chains.",
         risk: "Medium",
         factionReaction: "Banks +, Public +, Military neutral",
+        tags: ["negotiation", "relief"],
         spread: 1,
         statEffects: { stability: 5, trust: 7, treasury: -7 },
         actorEffects: {
@@ -248,6 +291,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Immediate throughput recovery, sharp legitimacy hit.",
         risk: "High",
         factionReaction: "Military ++, Public --, Media outrage",
+        tags: ["repression", "force"],
         spread: 2,
         statEffects: { security: 8, stability: 2, trust: -10, influence: -2 },
         actorEffects: {
@@ -274,6 +318,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Partial recovery with long-term coordination risk.",
         risk: "Medium",
         factionReaction: "Banks +, Media -, Public -",
+        tags: ["privatization", "logistics"],
         spread: 2,
         statEffects: { treasury: -5, stability: 2, influence: 3, trust: -4 },
         actorEffects: {
@@ -289,6 +334,7 @@ export const SCENARIOS: Scenario[] = [
     description:
       "Operational plans leaked overnight. Rival blocs are testing your response speed.",
     severity: 4,
+    tags: ["cyber", "intelligence", "governance"],
     regionTargets: ["capital", "border"],
     options: [
       {
@@ -297,6 +343,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Retaliate fast and rebuild deterrence.",
         risk: "High",
         factionReaction: "Military +, Media -, Public uncertain",
+        tags: ["retaliation", "security"],
         spread: 2,
         statEffects: { security: 9, influence: 4, treasury: -5, trust: -4 },
         actorEffects: {
@@ -310,6 +357,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Slow transparent response with legitimacy upside.",
         risk: "Low",
         factionReaction: "Public ++, Banks neutral, Military -",
+        tags: ["transparency", "oversight"],
         spread: 1,
         statEffects: { trust: 8, stability: 4, influence: -3 },
         actorEffects: {
@@ -323,6 +371,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Short-term calm with hidden blowback risk.",
         risk: "High",
         factionReaction: "Media --, Public --, Banks neutral",
+        tags: ["coverup", "repression"],
         spread: 2,
         statEffects: { stability: 5, influence: 2, trust: -8 },
         actorEffects: { media: { pressure: 6 }, public: { pressure: 3 } },
@@ -348,6 +397,7 @@ export const SCENARIOS: Scenario[] = [
     description:
       "Depositors are panicking. Liquidity lines are close to seizure in urban corridors.",
     severity: 5,
+    tags: ["finance", "liquidity"],
     regionTargets: ["capital", "coast", "industry"],
     options: [
       {
@@ -356,6 +406,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Stabilize confidence at major fiscal cost.",
         risk: "Medium",
         factionReaction: "Public +, Banks +, Inflation risk rises",
+        tags: ["bailout", "relief"],
         spread: 1,
         statEffects: { trust: 8, stability: 6, treasury: -11 },
         actorEffects: {
@@ -381,6 +432,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Contain outflows by force; public anger is likely.",
         risk: "High",
         factionReaction: "Banks +, Public --, Media --",
+        tags: ["controls", "repression"],
         spread: 3,
         statEffects: { treasury: 5, security: 3, trust: -10, influence: -3 },
         actorEffects: {
@@ -407,6 +459,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Technocratic containment with elite backlash.",
         risk: "Medium",
         factionReaction: "Banks -, Media -, Public neutral",
+        tags: ["consolidation", "technocratic"],
         spread: 2,
         statEffects: { stability: 6, treasury: -3, influence: 4, trust: -2 },
         actorEffects: {
@@ -422,6 +475,7 @@ export const SCENARIOS: Scenario[] = [
     description:
       "Hostile probes are escalating at the frontier. Local command requests authority.",
     severity: 4,
+    tags: ["security", "border"],
     regionTargets: ["border", "north"],
     options: [
       {
@@ -430,6 +484,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Max readiness at high social and fiscal cost.",
         risk: "High",
         factionReaction: "Military ++, Public -, Banks -",
+        tags: ["mobilization", "security"],
         spread: 1,
         statEffects: { security: 11, stability: 3, treasury: -8, trust: -4 },
         actorEffects: {
@@ -443,6 +498,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Targeted deterrence with controlled collateral risk.",
         risk: "Medium",
         factionReaction: "Military +, Media neutral, Public -",
+        tags: ["precision", "security"],
         spread: 2,
         statEffects: { security: 7, influence: 4, treasury: -4, trust: -2 },
         actorEffects: { military: { loyalty: 3 }, public: { pressure: 2 } },
@@ -453,6 +509,7 @@ export const SCENARIOS: Scenario[] = [
         description: "De-escalation attempt that may be read as weakness.",
         risk: "Medium",
         factionReaction: "Public +, Military -, Media split",
+        tags: ["diplomacy", "deescalation"],
         spread: 3,
         statEffects: { trust: 4, treasury: -2, stability: -3, security: -4 },
         actorEffects: {
@@ -468,6 +525,7 @@ export const SCENARIOS: Scenario[] = [
     description:
       "Payment rails and utilities are unstable across multiple districts.",
     severity: 4,
+    tags: ["cyber", "utilities", "infrastructure"],
     regionTargets: ["capital", "industry", "south"],
     options: [
       {
@@ -476,6 +534,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Stabilize essentials while sacrificing throughput.",
         risk: "Low",
         factionReaction: "Public +, Banks -, Media neutral",
+        tags: ["continuity", "relief"],
         spread: 2,
         statEffects: { stability: 5, trust: 3, treasury: -4 },
         actorEffects: { public: { pressure: -2 }, banks: { pressure: 2 } },
@@ -486,6 +545,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Fast patching with sovereignty backlash risk.",
         risk: "High",
         factionReaction: "Banks +, Public -, Media -",
+        tags: ["outsourcing", "security"],
         spread: 1,
         statEffects: { security: 8, influence: -4, trust: -3, treasury: -6 },
         actorEffects: {
@@ -500,6 +560,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Slower short-term response, stronger long-term capacity.",
         risk: "Medium",
         factionReaction: "Public +, Military +, Banks neutral",
+        tags: ["capacity", "institutional"],
         spread: 2,
         statEffects: { security: 5, influence: 5, stability: 2, treasury: -2 },
         resourceEffects: { intel: 3 },
@@ -513,6 +574,7 @@ export const SCENARIOS: Scenario[] = [
     description:
       "A legal ruling accelerates elections and fractures coalition discipline.",
     severity: 3,
+    tags: ["political", "legitimacy"],
     regionTargets: ["capital", "south"],
     options: [
       {
@@ -521,6 +583,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Consolidate base support and defer painful reforms.",
         risk: "Medium",
         factionReaction: "Public +, Media +, Banks -",
+        tags: ["campaign", "short-term"],
         spread: 2,
         statEffects: { trust: 7, influence: 6, treasury: -4, stability: -2 },
         actorEffects: {
@@ -535,6 +598,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Improve fiscal runway while inflaming social pressure.",
         risk: "High",
         factionReaction: "Banks +, Public --, Media -",
+        tags: ["austerity", "reform"],
         spread: 3,
         statEffects: { treasury: 7, stability: 3, trust: -8, influence: -2 },
         actorEffects: {
@@ -561,6 +625,7 @@ export const SCENARIOS: Scenario[] = [
         description: "Reduce polarization while sacrificing agenda control.",
         risk: "Low",
         factionReaction: "Public +, Media neutral, Military -",
+        tags: ["coalition", "consensus"],
         spread: 1,
         statEffects: { stability: 8, trust: 5, influence: -7 },
         actorEffects: {
@@ -569,5 +634,82 @@ export const SCENARIOS: Scenario[] = [
         },
       },
     ],
+  },
+];
+
+export const FOLLOWUP_RULES: CrisisFollowupRule[] = [
+  {
+    id: "cyber-to-intel",
+    fromScenarioId: "cyber-blackout",
+    toScenarioId: "intel-breach",
+    chance: 0.45,
+    maxSecurity: 45,
+  },
+  {
+    id: "cyber-to-election",
+    fromScenarioId: "cyber-blackout",
+    toScenarioId: "election-shock",
+    chance: 0.35,
+    maxTrust: 40,
+  },
+  {
+    id: "bank-to-election",
+    fromScenarioId: "bank-run",
+    toScenarioId: "election-shock",
+    chance: 0.4,
+    maxInfluence: 45,
+  },
+  {
+    id: "bank-to-port",
+    fromScenarioId: "bank-run",
+    toScenarioId: "port-strike",
+    chance: 0.3,
+    maxTreasury: 35,
+  },
+  {
+    id: "intel-to-border",
+    fromScenarioId: "intel-breach",
+    toScenarioId: "border-raid",
+    chance: 0.4,
+    maxSecurity: 40,
+  },
+  {
+    id: "coverup-to-election",
+    fromScenarioId: "intel-breach",
+    optionId: "bury-the-story",
+    toScenarioId: "election-shock",
+    chance: 0.45,
+    minPublicPressure: 55,
+  },
+  {
+    id: "border-to-bank",
+    fromScenarioId: "border-raid",
+    toScenarioId: "bank-run",
+    chance: 0.35,
+    maxTreasury: 35,
+  },
+  {
+    id: "crackdown-to-election",
+    fromScenarioId: "port-strike",
+    optionId: "security-crackdown",
+    toScenarioId: "election-shock",
+    chance: 0.35,
+    maxTrust: 45,
+  },
+  {
+    id: "reform-to-port",
+    fromScenarioId: "election-shock",
+    optionId: "hard-reforms",
+    toScenarioId: "port-strike",
+    chance: 0.4,
+    minPublicPressure: 60,
+  },
+  {
+    id: "pressure-any-to-cyber",
+    fromScenarioId: "any",
+    toScenarioId: "cyber-blackout",
+    chance: 0.25,
+    minPressure: 70,
+    requiresAnyOptionTag: ["repression", "controls", "austerity"],
   },
 ];

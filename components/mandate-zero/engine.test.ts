@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import { SCENARIOS } from "./data";
 import {
   applyActorEffects,
+  applyEffectsQueueForTurn,
   computeSystemCoupling,
   createInitialGame,
+  evaluateThresholdTriggers,
   isDemoSeedArray,
   isGameStateLike,
   normalizeSeed,
+  pickScenarioWithChains,
   pickScenario,
   queueDelayedEffects,
   resolvePendingEffects,
@@ -82,7 +85,7 @@ describe("engine effect resolution", () => {
 
     const queued = queueDelayedEffects(option, 5, 100);
     expect(queued.queued).toHaveLength(1);
-    expect(queued.queued[0].turnsLeft).toBe(2);
+    expect(queued.queued[0].turnToApply).toBe(3);
     expect(queued.queued[0].hidden).toBe(true);
     expect(queued.logs[0]).toContain("Potential latent shock");
   });
@@ -111,6 +114,33 @@ describe("engine effect resolution", () => {
     expect(result.remaining).toHaveLength(1);
     expect(result.remaining[0].turnsLeft).toBe(2);
     expect(result.logs[0]).toBe("A hidden aftershock triggered unexpectedly.");
+  });
+
+  it("applies queued effects deterministically for a given turn", () => {
+    const queue = [
+      {
+        id: "queued-1",
+        turnToApply: 2,
+        scope: "global" as const,
+        tags: ["delayed"],
+        source: "Queued one",
+        deltas: { statEffects: { trust: -2 } },
+      },
+      {
+        id: "queued-2",
+        turnToApply: 3,
+        scope: "global" as const,
+        tags: ["delayed"],
+        source: "Queued two",
+        deltas: { resourceEffects: { intel: 1 } },
+      },
+    ];
+    const first = applyEffectsQueueForTurn(queue, 2, 42, "Medium");
+    const second = applyEffectsQueueForTurn(queue, 2, 42, "Medium");
+    expect(first).toEqual(second);
+    expect(first.applied).toHaveLength(1);
+    expect(first.remaining).toHaveLength(1);
+    expect(first.statEffects.trust).toBe(-2);
   });
 });
 
@@ -154,6 +184,62 @@ describe("engine simulation outputs", () => {
     expect(result.resourceEffects.capital).toBe(1);
     expect(result.coupRisk).toBeGreaterThan(0);
   });
+
+  it("fires threshold triggers once and schedules next-turn fallout", () => {
+    const game = createInitialGame("threshold-check");
+    const first = evaluateThresholdTriggers(
+      game.stats,
+      { ...game.stats, trust: 35, treasury: 28, security: 32 },
+      {},
+      "populist",
+      game.turn,
+    );
+    expect(first.queuedEffects.length).toBe(3);
+    expect(first.updatedThresholds["trust-protests"]).toBe(true);
+
+    const second = evaluateThresholdTriggers(
+      { ...game.stats, trust: 35, treasury: 28, security: 32 },
+      { ...game.stats, trust: 25, treasury: 20, security: 20 },
+      first.updatedThresholds,
+      "populist",
+      game.turn + 1,
+    );
+    expect(second.queuedEffects.length).toBe(0);
+  });
+
+  it("chains crises deterministically when rule conditions match", () => {
+    const scenario = SCENARIOS.find((entry) => entry.id === "bank-run")!;
+    const option = scenario.options.find((entry) => entry.id === "freeze-transfers")!;
+    const first = pickScenarioWithChains(
+      scenario.id,
+      scenario,
+      option,
+      { stability: 40, treasury: 30, influence: 40, security: 45, trust: 35 },
+      {
+        banks: { loyalty: 50, pressure: 55 },
+        military: { loyalty: 52, pressure: 45 },
+        media: { loyalty: 48, pressure: 58 },
+        public: { loyalty: 46, pressure: 68 },
+      },
+      80,
+      1234,
+    );
+    const second = pickScenarioWithChains(
+      scenario.id,
+      scenario,
+      option,
+      { stability: 40, treasury: 30, influence: 40, security: 45, trust: 35 },
+      {
+        banks: { loyalty: 50, pressure: 55 },
+        military: { loyalty: 52, pressure: 45 },
+        media: { loyalty: 48, pressure: 58 },
+        public: { loyalty: 46, pressure: 68 },
+      },
+      80,
+      1234,
+    );
+    expect(first).toEqual(second);
+  });
 });
 
 describe("engine payload guards", () => {
@@ -178,4 +264,3 @@ describe("engine payload guards", () => {
     expect(isDemoSeedArray({})).toBe(false);
   });
 });
-

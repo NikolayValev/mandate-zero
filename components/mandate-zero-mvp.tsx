@@ -9,9 +9,7 @@ import {
   RUN_STORAGE_KEY,
   STAT_META,
 } from "@/components/mandate-zero/data";
-import {
-  ActorsRegionsCard,
-} from "@/components/mandate-zero/actors-regions-card";
+import { ActorsRegionsCard } from "@/components/mandate-zero/actors-regions-card";
 import { DemoSeedsCard } from "@/components/mandate-zero/demo-seeds-card";
 import { MainStageCard } from "@/components/mandate-zero/main-stage-card";
 import { PoliciesCard } from "@/components/mandate-zero/policies-card";
@@ -20,12 +18,19 @@ import { StrategicActionsCard } from "@/components/mandate-zero/strategic-action
 import { SystemStateCard } from "@/components/mandate-zero/system-state-card";
 import {
   applyActorEffects,
+  applyEffectsQueueForTurn,
   applyPolicyPassiveEffects,
+  applyRegionMemoryForResolution,
   applyResourceEffects,
   applyStatEffects,
   clamp,
+  computeBaselineDrift,
+  computeOutcomeVariance,
+  computePressureGain,
   computeSystemCoupling,
   createInitialGame,
+  evaluateThresholdTriggers,
+  getActionPointCost,
   getDoctrine,
   getIntelProfile,
   getScenario,
@@ -35,22 +40,27 @@ import {
   mergeActorEffects,
   mergeDelta,
   normalizeSeed,
-  pickScenario,
+  pickScenarioWithChains,
   queueDelayedEffects,
+  randomChance,
+  randomInt,
   reduceCooldowns,
-  resolvePendingEffects,
   rollUncertainStatEffects,
   simulateRegions,
   summarizeDelta,
 } from "@/components/mandate-zero/engine";
 import type {
   ActorEffects,
+  CausalityEntry,
+  CausalityStep,
   Delta,
   DemoSeed,
   DoctrineId,
   GameState,
   Phase,
   PolicyCommitment,
+  QueuedEffect,
+  RegionKey,
   ResourceKey,
   SavedRunPayload,
   ScenarioOption,
@@ -58,15 +68,79 @@ import type {
   StrategicAction,
 } from "@/components/mandate-zero/types";
 
+function isCausalityEntryArray(value: unknown): value is CausalityEntry[] {
+  return (
+    Array.isArray(value) &&
+    value.every((entry) => {
+      return (
+        isRecord(entry) &&
+        typeof entry.id === "string" &&
+        typeof entry.title === "string" &&
+        typeof entry.turn === "number" &&
+        Array.isArray(entry.steps) &&
+        Array.isArray(entry.affectedRegions)
+      );
+    })
+  );
+}
+
+function isQueuedEffectArray(value: unknown): value is QueuedEffect[] {
+  return (
+    Array.isArray(value) &&
+    value.every((effect) => {
+      return (
+        isRecord(effect) &&
+        typeof effect.id === "string" &&
+        typeof effect.turnToApply === "number" &&
+        typeof effect.source === "string" &&
+        isRecord(effect.deltas)
+      );
+    })
+  );
+}
+
+function hydrateLoadedGame(rawGame: GameState): GameState {
+  const fallback = createInitialGame(rawGame.seedText);
+  const raw = rawGame as GameState & { effectsQueue?: unknown; thresholdsFired?: unknown };
+  return {
+    ...fallback,
+    ...rawGame,
+    pressure: typeof rawGame.pressure === "number" ? rawGame.pressure : fallback.pressure,
+    turnStage: rawGame.turnStage ?? fallback.turnStage,
+    regionMemory: rawGame.regionMemory ?? fallback.regionMemory,
+    effectsQueue: isQueuedEffectArray(raw.effectsQueue) ? raw.effectsQueue : fallback.effectsQueue,
+    thresholdsFired: isRecord(raw.thresholdsFired) ? raw.thresholdsFired : fallback.thresholdsFired,
+  };
+}
+
 export function MandateZeroMvp() {
   const [game, setGame] = useState<GameState>(() => createInitialGame(DEFAULT_SEED));
   const [history, setHistory] = useState<string[]>([]);
+  const [causalityHistory, setCausalityHistory] = useState<CausalityEntry[]>([]);
+  const [selectedCausalityId, setSelectedCausalityId] = useState<string | null>(null);
+  const [highlightedRegions, setHighlightedRegions] = useState<RegionKey[]>([]);
   const [seedInput, setSeedInput] = useState(DEFAULT_SEED);
   const [customSeeds, setCustomSeeds] = useState<DemoSeed[]>([]);
   const [newSeedName, setNewSeedName] = useState("");
   const [newSeedValue, setNewSeedValue] = useState("");
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
+
+  const appendCausalityEntry = (
+    title: string,
+    turn: number,
+    affectedRegions: RegionKey[],
+    steps: CausalityStep[],
+  ) => {
+    const entry: CausalityEntry = {
+      id: `${turn}-${title}-${Date.now()}`,
+      turn,
+      title,
+      affectedRegions,
+      steps,
+    };
+    setCausalityHistory((prev) => [entry, ...prev].slice(0, 18));
+  };
 
   useEffect(() => {
     try {
@@ -82,12 +156,25 @@ export function MandateZeroMvp() {
       if (runRaw) {
         const parsedRun: unknown = JSON.parse(runRaw);
         if (isRecord(parsedRun) && isGameStateLike(parsedRun.game)) {
-          setGame(parsedRun.game);
-          setHistory(
+          setGame(hydrateLoadedGame(parsedRun.game));
+          const parsedHistory =
             Array.isArray(parsedRun.history)
               ? parsedRun.history.filter((entry): entry is string => typeof entry === "string")
-              : [],
-          );
+              : [];
+          setHistory(parsedHistory);
+
+          if (isCausalityEntryArray(parsedRun.causalityHistory)) {
+            setCausalityHistory(parsedRun.causalityHistory);
+          } else {
+            const fallbackEntries: CausalityEntry[] = parsedHistory.map((entry, index) => ({
+              id: `legacy-${index}`,
+              turn: 0,
+              title: entry,
+              affectedRegions: [],
+              steps: [{ label: "Event", detail: entry }],
+            }));
+            setCausalityHistory(fallbackEntries);
+          }
           if (typeof parsedRun.seedInput === "string") {
             setSeedInput(parsedRun.seedInput);
           }
@@ -105,9 +192,9 @@ export function MandateZeroMvp() {
       return;
     }
 
-    const payload: SavedRunPayload = { game, history, seedInput };
+    const payload: SavedRunPayload = { game, history, causalityHistory, seedInput };
     window.localStorage.setItem(RUN_STORAGE_KEY, JSON.stringify(payload));
-  }, [game, history, seedInput, storageReady]);
+  }, [game, history, causalityHistory, seedInput, storageReady]);
 
   useEffect(() => {
     if (!storageReady) {
@@ -124,7 +211,18 @@ export function MandateZeroMvp() {
     () => getIntelProfile(game.resources.intel, game.doctrine),
     [game.doctrine, game.resources.intel],
   );
+  const outcomeVariance = useMemo(
+    () => computeOutcomeVariance(intelProfile.variance, game.doctrine, game.pressure),
+    [game.doctrine, game.pressure, intelProfile.variance],
+  );
   const allSeeds = useMemo(() => [...BUILT_IN_DEMO_SEEDS, ...customSeeds], [customSeeds]);
+  const upcomingEffects = useMemo(
+    () =>
+      game.effectsQueue
+        .filter((effect) => effect.turnToApply <= game.turn + 2)
+        .sort((left, right) => left.turnToApply - right.turnToApply),
+    [game.effectsQueue, game.turn],
+  );
 
   const hotRegions = REGION_META.filter((region) => game.regions[region.key] >= 70).length;
   const criticalRegions = REGION_META.filter((region) => game.regions[region.key] >= 85).length;
@@ -137,6 +235,9 @@ export function MandateZeroMvp() {
     setSeedInput(normalizedSeed);
     setGame(createInitialGame(normalizedSeed));
     setHistory([]);
+    setCausalityHistory([]);
+    setSelectedCausalityId(null);
+    setHighlightedRegions([]);
     setSeedMessage(`Loaded seed '${normalizedSeed}'.`);
   };
 
@@ -150,15 +251,13 @@ export function MandateZeroMvp() {
     }
 
     const stats = applyStatEffects(game.stats, selected.startEffects.statEffects ?? {});
-    const resources = applyResourceEffects(
-      game.resources,
-      selected.startEffects.resourceEffects ?? {},
-    );
+    const resources = applyResourceEffects(game.resources, selected.startEffects.resourceEffects ?? {});
     const actorApplication = applyActorEffects(game.actors, selected.startEffects.actorEffects ?? {});
 
     setGame((prev) => ({
       ...prev,
       doctrine: doctrineId,
+      turnStage: "decision",
       stats,
       resources,
       actors: actorApplication.actors,
@@ -169,6 +268,12 @@ export function MandateZeroMvp() {
       lastActorPressureDelta: actorApplication.pressureDelta,
     }));
     setHistory((prev) => [`Doctrine selected -> ${selected.title}`, ...prev].slice(0, 18));
+    appendCausalityEntry(`Doctrine -> ${selected.title}`, game.turn, [], [
+      {
+        label: "Immediate",
+        detail: summarizeDelta(selected.startEffects.statEffects ?? {}, STAT_META) || "no stat shift",
+      },
+    ]);
   };
 
   const enactPolicy = (policy: PolicyCommitment) => {
@@ -192,6 +297,7 @@ export function MandateZeroMvp() {
 
     setGame((prev) => ({
       ...prev,
+      turnStage: "decision",
       stats,
       resources,
       actors: actorApplication.actors,
@@ -207,7 +313,14 @@ export function MandateZeroMvp() {
     }));
 
     setHistory((prev) => [`Policy enacted -> ${policy.title}`, ...prev].slice(0, 18));
+    appendCausalityEntry(`Policy -> ${policy.title}`, game.turn, [], [
+      { label: "Immediate", detail: summarizeDelta(policy.immediate.statEffects ?? {}, STAT_META) || "none" },
+      { label: "Passive", detail: summarizeDelta(policy.passive.statEffects ?? {}, STAT_META) || "none" },
+    ]);
   };
+
+  const getAdjustedActionCost = (action: StrategicAction) =>
+    getActionPointCost(action.apCost, action.id, game.doctrine);
 
   const getActionDisabledReason = (action: StrategicAction) => {
     if (!canPlay) {
@@ -217,8 +330,9 @@ export function MandateZeroMvp() {
     if (cooldown > 0) {
       return `Cooldown ${cooldown}`;
     }
-    if (game.actionPoints < action.apCost) {
-      return `Need ${action.apCost} AP`;
+    const actionCost = getAdjustedActionCost(action);
+    if (game.actionPoints < actionCost) {
+      return `Need ${actionCost} AP`;
     }
     if (action.resourceCost) {
       for (const [key, cost] of Object.entries(action.resourceCost) as Array<[ResourceKey, number]>) {
@@ -237,12 +351,8 @@ export function MandateZeroMvp() {
     }
 
     let rngState = game.rngState;
-    const uncertainty = Math.max(1, intelProfile.variance - 1);
-    const rolledStats = rollUncertainStatEffects(
-      action.effects.statEffects ?? {},
-      uncertainty,
-      rngState,
-    );
+    const uncertainty = Math.max(1, outcomeVariance - 1);
+    const rolledStats = rollUncertainStatEffects(action.effects.statEffects ?? {}, uncertainty, rngState);
     rngState = rolledStats.rngState;
 
     const resourceCostDelta: Delta<ResourceKey> = {};
@@ -254,18 +364,61 @@ export function MandateZeroMvp() {
     const resources = applyResourceEffects(game.resources, resourceDelta);
     const stats = applyStatEffects(game.stats, rolledStats.effects);
     const actorApplication = applyActorEffects(game.actors, action.effects.actorEffects ?? {});
-
-    const actionPoints = Math.max(0, game.actionPoints - action.apCost);
+    const actionCost = getAdjustedActionCost(action);
+    const actionPoints = Math.max(0, game.actionPoints - actionCost);
     const cooldowns = { ...game.cooldowns, [action.id]: action.cooldown };
+
+    const queuedEffects: QueuedEffect[] = [];
+    if (action.id === "reserve-mobilization") {
+      const hitRoll = randomChance(rngState, 0.55);
+      rngState = hitRoll.nextState;
+      if (hitRoll.hit) {
+        const delayRoll = randomInt(rngState, 1, 2);
+        rngState = delayRoll.nextState;
+        queuedEffects.push({
+          id: `action-${action.id}-${game.turn}-${rngState}`,
+          turnToApply: game.turn + delayRoll.value,
+          scope: "global",
+          tags: ["action", "backlash", "security"],
+          source: "Mobilization backlash",
+          deltas: {
+            statEffects: { trust: -3, stability: -1 },
+            actorEffects: { public: { pressure: 3 } },
+            coupRisk: 2,
+          },
+        });
+      }
+    }
+    if (action.id === "emergency-subsidy") {
+      const hitRoll = randomChance(rngState, 0.45);
+      rngState = hitRoll.nextState;
+      if (hitRoll.hit) {
+        const delayRoll = randomInt(rngState, 2, 3);
+        rngState = delayRoll.nextState;
+        queuedEffects.push({
+          id: `action-${action.id}-${game.turn}-${rngState}`,
+          turnToApply: game.turn + delayRoll.value,
+          scope: "global",
+          tags: ["action", "inflation"],
+          source: "Subsidy inflation drag",
+          deltas: {
+            statEffects: { treasury: -3, trust: -2 },
+            actorEffects: { public: { pressure: 2 } },
+          },
+        });
+      }
+    }
 
     setGame((prev) => ({
       ...prev,
+      turnStage: "decision",
       rngState,
       stats,
       resources,
       actors: actorApplication.actors,
       actionPoints,
       cooldowns,
+      effectsQueue: [...prev.effectsQueue, ...queuedEffects],
       message:
         actionPoints === 0
           ? `${action.title} executed. Overextension risk armed for this turn.`
@@ -277,10 +430,24 @@ export function MandateZeroMvp() {
     }));
 
     const statSummary = summarizeDelta(rolledStats.effects, STAT_META);
+    const queueSummary =
+      queuedEffects.length > 0
+        ? ` | queued: ${queuedEffects.map((effect) => `${effect.source} T${effect.turnToApply}`).join(", ")}`
+        : "";
     setHistory((prev) => {
-      const line = `Strategic action -> ${action.title}${statSummary ? ` (${statSummary})` : ""}`;
+      const line = `Strategic action -> ${action.title}${statSummary ? ` (${statSummary})` : ""}${queueSummary}`;
       return [line, ...prev].slice(0, 18);
     });
+    appendCausalityEntry(`Action -> ${action.title}`, game.turn, [], [
+      { label: "Immediate", detail: statSummary || "no stat shift" },
+      {
+        label: "Delayed",
+        detail:
+          queuedEffects.length > 0
+            ? queuedEffects.map((effect) => `${effect.source} (T${effect.turnToApply})`).join(", ")
+            : "none",
+      },
+    ]);
   };
 
   const resolveCrisisOption = (option: ScenarioOption) => {
@@ -289,31 +456,37 @@ export function MandateZeroMvp() {
     }
 
     let rngState = game.rngState;
-
-    const rolledOptionStats = rollUncertainStatEffects(option.statEffects, intelProfile.variance, rngState);
-    rngState = rolledOptionStats.rngState;
-
-    const pendingResolution = resolvePendingEffects(
-      game.pendingEffects,
+    const queuedResolution = applyEffectsQueueForTurn(
+      game.effectsQueue,
+      game.turn,
       rngState,
       intelProfile.confidence,
     );
-    rngState = pendingResolution.rngState;
+    rngState = queuedResolution.rngState;
 
-    const queuedDelayed = queueDelayedEffects(option, game.resources.intel, rngState);
+    const rolledOptionStats = rollUncertainStatEffects(option.statEffects, outcomeVariance, rngState);
+    rngState = rolledOptionStats.rngState;
+
+    const queuedDelayed = queueDelayedEffects(
+      option,
+      game.resources.intel,
+      rngState,
+      game.turn,
+      scenario.regionTargets,
+    );
     rngState = queuedDelayed.rngState;
 
-    let statDelta: Delta<StatKey> = { treasury: -2, trust: -1 };
+    let statDelta: Delta<StatKey> = computeBaselineDrift(game.doctrine, game.pressure);
     let resourceDelta: Delta<ResourceKey> = { intel: 1, supplies: 1, capital: 1 };
     let actorEffects: ActorEffects = {};
     let coupRiskDelta = 0;
 
     statDelta = mergeDelta(statDelta, rolledOptionStats.effects);
-    statDelta = mergeDelta(statDelta, pendingResolution.statEffects);
+    statDelta = mergeDelta(statDelta, queuedResolution.statEffects);
     resourceDelta = mergeDelta(resourceDelta, option.resourceEffects);
-    resourceDelta = mergeDelta(resourceDelta, pendingResolution.resourceEffects);
-    actorEffects = mergeActorEffects(actorEffects, option.actorEffects, pendingResolution.actorEffects);
-    coupRiskDelta += pendingResolution.coupRisk;
+    resourceDelta = mergeDelta(resourceDelta, queuedResolution.resourceEffects);
+    actorEffects = mergeActorEffects(actorEffects, option.actorEffects, queuedResolution.actorEffects);
+    coupRiskDelta += queuedResolution.coupRisk;
 
     if (game.actionPoints === 0) {
       statDelta = mergeDelta(statDelta, { stability: -2, trust: -2 });
@@ -331,7 +504,7 @@ export function MandateZeroMvp() {
     const actorApply = applyActorEffects(game.actors, actorEffects);
     let actors = actorApply.actors;
 
-    const coupling = computeSystemCoupling(stats, resources, actors, game.doctrine);
+    const coupling = computeSystemCoupling(stats, resources, actors, game.doctrine, game.pressure);
     stats = applyStatEffects(stats, coupling.statEffects);
     resources = applyResourceEffects(resources, coupling.resourceEffects);
     const couplingActorApply = applyActorEffects(actors, coupling.actorEffects);
@@ -341,12 +514,15 @@ export function MandateZeroMvp() {
     resourceDelta = mergeDelta(resourceDelta, coupling.resourceEffects);
     coupRiskDelta += coupling.coupRisk;
 
+    const regionMemory = applyRegionMemoryForResolution(game.regionMemory, scenario, option);
     const regionSimulation = simulateRegions(
       game.regions,
       scenario,
       option,
       stats.security,
       rngState,
+      game.pressure,
+      regionMemory,
     );
     rngState = regionSimulation.rngState;
     const regions = regionSimulation.regions;
@@ -354,10 +530,33 @@ export function MandateZeroMvp() {
     statDelta = mergeDelta(statDelta, regionSimulation.statPenalty);
     coupRiskDelta += regionSimulation.coupRiskDelta;
 
+    const hotRegionsNext = REGION_META.filter((region) => regions[region.key] >= 70).length;
+    const criticalRegionsNext = REGION_META.filter((region) => regions[region.key] >= 85).length;
+    const pressureGain = computePressureGain(
+      regionSimulation.effectiveSeverity,
+      hotRegionsNext,
+      criticalRegionsNext,
+      stats.security,
+    );
+    const pressure = clamp(game.pressure + pressureGain);
+
+    const thresholdTriggers = evaluateThresholdTriggers(
+      game.stats,
+      stats,
+      game.thresholdsFired,
+      game.doctrine,
+      game.turn,
+    );
+
+    let effectsQueue = [
+      ...queuedResolution.remaining,
+      ...queuedDelayed.queued,
+      ...thresholdTriggers.queuedEffects,
+    ];
     let coupRisk = clamp(game.coupRisk + coupRiskDelta);
     let phase: Phase = "playing";
     let collapseCount = game.collapseCount;
-    let message = `${scenario.title}: ${option.title}. ${regionSimulation.summary}`;
+    let message = `${scenario.title}: ${option.title}. ${regionSimulation.summary}. Pressure +${pressureGain}.`;
 
     const collapsedStats = STAT_META.filter((entry) => stats[entry.key] === 0);
     if (collapsedStats.length > 0) {
@@ -379,14 +578,25 @@ export function MandateZeroMvp() {
       phase = "lost";
       message = "Coup risk reached critical threshold. Command authority collapsed.";
     }
+    if (phase === "playing" && pressure >= 100) {
+      phase = "lost";
+      message = "Pressure reached systemic overload. Cascading crises ended the mandate.";
+    }
 
     const nextTurn = game.turn + 1;
     let scenarioId = game.scenarioId;
+    let chainRuleId: string | null = null;
     if (phase === "playing") {
       if (nextTurn > game.maxTurns) {
         const averageStress =
           Object.values(regions).reduce((sum, value) => sum + value, 0) / REGION_META.length;
-        if (stats.stability >= 40 && stats.trust >= 35 && coupRisk < 70 && averageStress < 70) {
+        if (
+          stats.stability >= 40 &&
+          stats.trust >= 35 &&
+          coupRisk < 70 &&
+          averageStress < 70 &&
+          pressure < 85
+        ) {
           phase = "won";
           message = "Mandate survived. You contained crises without full breakdown.";
         } else {
@@ -394,32 +604,51 @@ export function MandateZeroMvp() {
           message = "Term ended in systemic fragility. Earlier compromises finally broke the state.";
         }
       } else {
-        const nextScenario = pickScenario(game.scenarioId, rngState);
+        const nextScenario = pickScenarioWithChains(
+          game.scenarioId,
+          scenario,
+          option,
+          stats,
+          actors,
+          pressure,
+          rngState,
+        );
         scenarioId = nextScenario.scenarioId;
+        chainRuleId = nextScenario.chainRuleId;
         rngState = nextScenario.rngState;
       }
     }
 
-    const cooldowns = reduceCooldowns(game.cooldowns);
-    const pendingEffects = [...pendingResolution.remaining, ...queuedDelayed.queued];
+    if (chainRuleId) {
+      message = `${message} Follow-up chain triggered (${chainRuleId}).`;
+    }
 
+    const cooldowns = reduceCooldowns(game.cooldowns);
     const loyaltyDelta = mergeDelta(actorApply.loyaltyDelta, couplingActorApply.loyaltyDelta);
     const pressureDelta = mergeDelta(actorApply.pressureDelta, couplingActorApply.pressureDelta);
+
+    if (phase !== "playing") {
+      effectsQueue = [];
+    }
 
     setGame((prev) => ({
       ...prev,
       rngState,
       turn: nextTurn,
       phase,
+      turnStage: phase === "playing" ? "crisis" : "fallout",
       message,
       scenarioId,
       stats,
       resources,
       actors,
       regions,
+      regionMemory,
+      pressure,
       actionPoints: prev.maxActionPoints,
       cooldowns,
-      pendingEffects,
+      effectsQueue,
+      thresholdsFired: thresholdTriggers.updatedThresholds,
       coupRisk,
       collapseCount,
       lastStatDelta: statDelta,
@@ -429,9 +658,39 @@ export function MandateZeroMvp() {
     }));
 
     const optionSummary = summarizeDelta(rolledOptionStats.effects, STAT_META);
-    const pendingLogs = [...pendingResolution.logs, ...queuedDelayed.logs];
-    const logLine = `${scenario.title} -> ${option.title}${optionSummary ? ` (${optionSummary})` : ""}`;
-    setHistory((prev) => [logLine, ...pendingLogs, ...prev].slice(0, 18));
+    const queueLogs = [...queuedResolution.logs, ...queuedDelayed.logs, ...thresholdTriggers.logs];
+    const queueLine =
+      queueLogs.length > 0 ? ` | ${queueLogs.slice(0, 2).join(" | ")}` : "";
+    const chainLine = chainRuleId ? ` | chain ${chainRuleId}` : "";
+    const logLine = `${scenario.title} -> ${option.title}${optionSummary ? ` (${optionSummary})` : ""}${queueLine}${chainLine}`;
+    setHistory((prev) => [logLine, ...prev].slice(0, 18));
+
+    appendCausalityEntry(
+      `${scenario.title} -> ${option.title}`,
+      game.turn,
+      regionSimulation.impactedRegions,
+      [
+        {
+          label: "Immediate Deltas",
+          detail: summarizeDelta(rolledOptionStats.effects, STAT_META) || "none",
+        },
+        {
+          label: "Delayed Effects Enqueued",
+          detail:
+            queuedDelayed.queued.length > 0
+              ? queuedDelayed.queued.map((entry) => `${entry.source} (T${entry.turnToApply})`).join(", ")
+              : "none",
+        },
+        {
+          label: "Thresholds Triggered",
+          detail: thresholdTriggers.logs.join(" | ") || "none",
+        },
+        {
+          label: "Region Impacts",
+          detail: regionSimulation.summary,
+        },
+      ],
+    );
   };
 
   const addCustomSeed = () => {
@@ -476,7 +735,13 @@ export function MandateZeroMvp() {
     game.stats.trust < 30 ? "Public trust collapse risk" : null,
     game.resources.intel < 4 ? "Intel is low: forecasts are noisy" : null,
     game.coupRisk >= 70 ? "Coup risk is escalating rapidly" : null,
+    game.pressure >= 70 ? "Pressure curve is in red zone" : null,
   ].filter((warning): warning is string => Boolean(warning));
+
+  const selectCausalityEntry = (entry: CausalityEntry) => {
+    setSelectedCausalityId(entry.id);
+    setHighlightedRegions(entry.affectedRegions);
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[0.95fr_1.5fr_1fr]">
@@ -484,9 +749,16 @@ export function MandateZeroMvp() {
         <PoliciesCard game={game} canPlay={canPlay} onEnactPolicy={enactPolicy} />
         <StrategicActionsCard
           getActionDisabledReason={getActionDisabledReason}
+          getActionPointCost={getAdjustedActionCost}
+          outcomeVariance={outcomeVariance}
+          upcomingEffects={upcomingEffects}
           onTriggerStrategicAction={triggerStrategicAction}
         />
-        <SimulationLogCard history={history} />
+        <SimulationLogCard
+          entries={causalityHistory}
+          selectedEntryId={selectedCausalityId}
+          onSelectEntry={selectCausalityEntry}
+        />
       </div>
 
       <div className="order-1 lg:order-2">
@@ -497,6 +769,8 @@ export function MandateZeroMvp() {
           escalationClock={escalationClock}
           hotRegions={hotRegions}
           criticalRegions={criticalRegions}
+          upcomingEffects={upcomingEffects}
+          outcomeVariance={outcomeVariance}
           canPlay={canPlay}
           onChooseDoctrine={chooseDoctrine}
           onResolveCrisisOption={resolveCrisisOption}
@@ -519,7 +793,7 @@ export function MandateZeroMvp() {
           onRemoveCustomSeed={removeCustomSeed}
         />
         <SystemStateCard game={game} warnings={warnings} />
-        <ActorsRegionsCard game={game} />
+        <ActorsRegionsCard game={game} highlightedRegions={highlightedRegions} />
       </div>
     </div>
   );

@@ -59,13 +59,20 @@ export const REGION_ACTOR_FOCUS: Record<RegionKey, ActorKey> = {
 
 interface RegionTheaterMapProps {
   game: GameState;
+  highlightedRegions?: RegionKey[];
 }
 
-export function RegionTheaterMap({ game }: RegionTheaterMapProps) {
+export function RegionTheaterMap({ game, highlightedRegions = [] }: RegionTheaterMapProps) {
   const regionKeys = useMemo(() => Object.keys(REGION_LAYOUT) as RegionKey[], []);
   const [selectedRegion, setSelectedRegion] = useState<RegionKey>("capital");
   const [isResolving, setIsResolving] = useState(false);
   const previousStressRef = useRef(game.regions);
+
+  useEffect(() => {
+    if (highlightedRegions.length > 0) {
+      setSelectedRegion(highlightedRegions[0]);
+    }
+  }, [highlightedRegions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +130,7 @@ export function RegionTheaterMap({ game }: RegionTheaterMapProps) {
             const loyalty = actor.loyalty;
             const altitude = crisisAltitude(stress, pressure, loyalty);
             const isSelected = selectedRegion === regionKey;
+            const isHighlighted = highlightedRegions.includes(regionKey);
             const pulseClass =
               stress >= 85
                 ? "animate-pulse ring-2 ring-red-100/80"
@@ -145,7 +153,9 @@ export function RegionTheaterMap({ game }: RegionTheaterMapProps) {
                 }}
               >
                 <div
-                  className={`rounded-lg border bg-gradient-to-b px-2 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)] ${severityTone(stress)} ${pulseClass}`}
+                  className={`rounded-lg border bg-gradient-to-b px-2 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.45)] ${severityTone(stress)} ${pulseClass} ${
+                    isHighlighted ? "ring-2 ring-cyan-200" : ""
+                  }`}
                 >
                   <p className="text-[10px] font-semibold uppercase tracking-wide">{layout.label}</p>
                   <p className="text-xs">Stress {stress}</p>

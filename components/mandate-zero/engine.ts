@@ -2,6 +2,7 @@ import {
   ACTOR_META,
   DEFAULT_SEED,
   DOCTRINES,
+  FOLLOWUP_RULES,
   POLICIES,
   REGION_META,
   RESOURCE_META,
@@ -12,20 +13,54 @@ import type {
   ActorEffects,
   ActorKey,
   ActorState,
+  CrisisFollowupRule,
   Delta,
   DemoSeed,
   DoctrineId,
+  EffectPack,
   GameState,
   IntelProfile,
   PendingEffect,
   PolicyId,
+  QueuedEffect,
   RegionKey,
+  RegionMemoryState,
   ResourceKey,
   RiskLevel,
   Scenario,
   ScenarioOption,
   StatKey,
+  ThresholdKey,
 } from "./types";
+
+const DEFAULT_THRESHOLD_DANGER: Record<ThresholdKey, number> = {
+  "trust-protests": 1,
+  "treasury-austerity": 1,
+  "security-insurgency": 1,
+};
+
+const EMPTY_DOCTRINE_RULES: {
+  varianceBias: number;
+  trustDecayModifier: number;
+  actionApAdjustments: Partial<Record<string, number>>;
+  thresholdDanger: Record<ThresholdKey, number>;
+} = {
+  varianceBias: 0,
+  trustDecayModifier: 0,
+  actionApAdjustments: {},
+  thresholdDanger: DEFAULT_THRESHOLD_DANGER,
+};
+
+function buildInitialRegionMemory(): Record<RegionKey, RegionMemoryState> {
+  return {
+    north: { resentment: 0, dependency: 0 },
+    south: { resentment: 0, dependency: 0 },
+    capital: { resentment: 0, dependency: 0 },
+    industry: { resentment: 0, dependency: 0 },
+    border: { resentment: 0, dependency: 0 },
+    coast: { resentment: 0, dependency: 0 },
+  };
+}
 
 export function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
@@ -76,6 +111,26 @@ export function mergeDelta<T extends string>(base: Delta<T>, addition?: Delta<T>
   return next;
 }
 
+function scaleDelta<T extends string>(delta: Delta<T> | undefined, multiplier: number): Delta<T> | undefined {
+  if (!delta) {
+    return undefined;
+  }
+  const next: Delta<T> = {};
+  for (const [key, value] of Object.entries(delta) as Array<[T, number]>) {
+    next[key] = Math.round(value * multiplier);
+  }
+  return next;
+}
+
+function scaleEffectPack(pack: EffectPack, multiplier: number): EffectPack {
+  return {
+    statEffects: scaleDelta(pack.statEffects, multiplier),
+    resourceEffects: scaleDelta(pack.resourceEffects, multiplier),
+    actorEffects: pack.actorEffects,
+    coupRisk: pack.coupRisk !== undefined ? Math.round(pack.coupRisk * multiplier) : undefined,
+  };
+}
+
 export function mergeActorEffects(...effects: Array<ActorEffects | undefined>) {
   const merged: ActorEffects = {};
   for (const effect of effects) {
@@ -121,10 +176,7 @@ export function applyResourceEffects(
   return next;
 }
 
-export function applyActorEffects(
-  actors: Record<ActorKey, ActorState>,
-  effects: ActorEffects,
-) {
+export function applyActorEffects(actors: Record<ActorKey, ActorState>, effects: ActorEffects) {
   const next: Record<ActorKey, ActorState> = {
     banks: { ...actors.banks },
     military: { ...actors.military },
@@ -157,6 +209,24 @@ export function getDoctrine(doctrineId: DoctrineId | null) {
   return DOCTRINES.find((doctrine) => doctrine.id === doctrineId) ?? null;
 }
 
+export function getDoctrineRules(doctrineId: DoctrineId | null) {
+  const doctrine = getDoctrine(doctrineId);
+  if (!doctrine) {
+    return EMPTY_DOCTRINE_RULES;
+  }
+  return {
+    ...doctrine.ruleMods,
+    actionApAdjustments: doctrine.ruleMods.actionApAdjustments ?? {},
+    thresholdDanger: { ...DEFAULT_THRESHOLD_DANGER, ...doctrine.ruleMods.thresholdDanger },
+  };
+}
+
+export function getActionPointCost(baseCost: number, actionId: string, doctrineId: DoctrineId | null) {
+  const rules = getDoctrineRules(doctrineId);
+  const adjustment = rules.actionApAdjustments[actionId] ?? 0;
+  return clamp(baseCost + adjustment, 0, 4);
+}
+
 export function getPolicy(policyId: PolicyId) {
   return POLICIES.find((policy) => policy.id === policyId);
 }
@@ -167,12 +237,33 @@ export function getScenario(scenarioId: string) {
 
 export function getIntelProfile(intel: number, doctrineId: DoctrineId | null): IntelProfile {
   const doctrine = getDoctrine(doctrineId);
+  const rules = getDoctrineRules(doctrineId);
   const shift = doctrine?.uncertaintyShift ?? 0;
   const baseVariance = intel >= 12 ? 2 : intel >= 8 ? 4 : 6;
-  const variance = clamp(baseVariance + shift, 1, 8);
+  const variance = clamp(baseVariance + shift + rules.varianceBias, 1, 10);
   const confidence: IntelProfile["confidence"] =
-    variance <= 2 ? "High" : variance <= 4 ? "Medium" : "Low";
+    variance <= 2 ? "High" : variance <= 5 ? "Medium" : "Low";
   return { confidence, variance };
+}
+
+export function computeOutcomeVariance(
+  baseVariance: number,
+  doctrineId: DoctrineId | null,
+  pressure: number,
+) {
+  const pressureVariance =
+    doctrineId === "populist" ? Math.floor(pressure / 18) : Math.floor(pressure / 45);
+  return clamp(baseVariance + pressureVariance, 1, 10);
+}
+
+export function confidenceBand(variance: number): "High" | "Medium" | "Low" {
+  if (variance <= 3) {
+    return "High";
+  }
+  if (variance <= 6) {
+    return "Medium";
+  }
+  return "Low";
 }
 
 export function rollUncertainStatEffects(
@@ -239,6 +330,79 @@ export function pickScenario(previousId: string | undefined, rngState: number) {
   return { scenarioId: pool[index].id, rngState: random.nextState };
 }
 
+function ruleMatches(
+  rule: CrisisFollowupRule,
+  scenario: Scenario,
+  option: ScenarioOption,
+  stats: Record<StatKey, number>,
+  actors: Record<ActorKey, ActorState>,
+  pressure: number,
+) {
+  if (rule.fromScenarioId !== "any" && rule.fromScenarioId !== scenario.id) {
+    return false;
+  }
+  if (rule.optionId && rule.optionId !== option.id) {
+    return false;
+  }
+  if (rule.requiresAnyScenarioTag?.length) {
+    const scenarioTags = scenario.tags ?? [];
+    if (!rule.requiresAnyScenarioTag.some((tag) => scenarioTags.includes(tag))) {
+      return false;
+    }
+  }
+  if (rule.requiresAnyOptionTag?.length) {
+    const optionTags = option.tags ?? [];
+    if (!rule.requiresAnyOptionTag.some((tag) => optionTags.includes(tag))) {
+      return false;
+    }
+  }
+  if (rule.minPressure !== undefined && pressure < rule.minPressure) {
+    return false;
+  }
+  if (rule.maxSecurity !== undefined && stats.security > rule.maxSecurity) {
+    return false;
+  }
+  if (rule.maxTrust !== undefined && stats.trust > rule.maxTrust) {
+    return false;
+  }
+  if (rule.maxTreasury !== undefined && stats.treasury > rule.maxTreasury) {
+    return false;
+  }
+  if (rule.maxInfluence !== undefined && stats.influence > rule.maxInfluence) {
+    return false;
+  }
+  if (rule.minPublicPressure !== undefined && actors.public.pressure < rule.minPublicPressure) {
+    return false;
+  }
+  return true;
+}
+
+export function pickScenarioWithChains(
+  previousId: string | undefined,
+  scenario: Scenario,
+  option: ScenarioOption,
+  stats: Record<StatKey, number>,
+  actors: Record<ActorKey, ActorState>,
+  pressure: number,
+  rngState: number,
+): { scenarioId: string; rngState: number; chainRuleId: string | null } {
+  let nextRng = rngState;
+  for (const rule of FOLLOWUP_RULES) {
+    if (!ruleMatches(rule, scenario, option, stats, actors, pressure)) {
+      continue;
+    }
+    const chance = clamp(rule.chance + pressure * 0.002, 0, 0.95);
+    const roll = randomChance(nextRng, chance);
+    nextRng = roll.nextState;
+    if (roll.hit) {
+      return { scenarioId: rule.toScenarioId, rngState: nextRng, chainRuleId: rule.id };
+    }
+  }
+
+  const fallback = pickScenario(previousId, nextRng);
+  return { scenarioId: fallback.scenarioId, rngState: fallback.rngState, chainRuleId: null };
+}
+
 export function createInitialGame(seedText: string): GameState {
   const normalizedSeed = normalizeSeed(seedText);
   const firstPick = pickScenario(undefined, hashSeed(normalizedSeed));
@@ -249,12 +413,14 @@ export function createInitialGame(seedText: string): GameState {
     turn: 1,
     maxTurns: 12,
     phase: "playing",
+    turnStage: "crisis",
     message:
-      "Choose a doctrine, spend AP, then resolve crisis. Hidden effects and delayed shocks are active.",
+      "Choose a doctrine, spend AP, then resolve crisis. Delayed fallout and threshold shocks are active.",
     scenarioId: firstPick.scenarioId,
     doctrine: null,
     maxActionPoints: 2,
     actionPoints: 2,
+    pressure: 12,
     collapseCount: 0,
     coupRisk: 12,
     stats: {
@@ -283,9 +449,11 @@ export function createInitialGame(seedText: string): GameState {
       border: 32,
       coast: 27,
     },
+    regionMemory: buildInitialRegionMemory(),
     cooldowns: {},
+    thresholdsFired: {},
     activePolicies: [],
-    pendingEffects: [],
+    effectsQueue: [],
     lastStatDelta: {},
     lastResourceDelta: {},
     lastActorLoyaltyDelta: {},
@@ -369,12 +537,61 @@ export function resolvePendingEffects(
   };
 }
 
+export function applyEffectsQueueForTurn(
+  effectsQueue: QueuedEffect[],
+  turn: number,
+  rngState: number,
+  intelConfidence: IntelProfile["confidence"],
+) {
+  let statEffects: Delta<StatKey> = {};
+  let resourceEffects: Delta<ResourceKey> = {};
+  let actorEffects: ActorEffects = {};
+  let coupRisk = 0;
+  const remaining: QueuedEffect[] = [];
+  const applied: QueuedEffect[] = [];
+  const logs: string[] = [];
+  let nextRng = rngState;
+
+  for (const queued of effectsQueue) {
+    if (queued.turnToApply > turn) {
+      remaining.push(queued);
+      continue;
+    }
+
+    applied.push(queued);
+    statEffects = mergeDelta(statEffects, queued.deltas.statEffects);
+    resourceEffects = mergeDelta(resourceEffects, queued.deltas.resourceEffects);
+    actorEffects = mergeActorEffects(actorEffects, queued.deltas.actorEffects);
+    coupRisk += queued.deltas.coupRisk ?? 0;
+
+    if (queued.hidden && intelConfidence === "Low") {
+      logs.push("An untracked fallout event triggered.");
+    } else {
+      logs.push(`Fallout triggered: ${queued.source}.`);
+    }
+    nextRng = randomFromState(nextRng).nextState;
+  }
+
+  return {
+    remaining,
+    applied,
+    statEffects,
+    resourceEffects,
+    actorEffects,
+    coupRisk,
+    logs,
+    rngState: nextRng,
+  };
+}
+
 export function queueDelayedEffects(
   option: ScenarioOption,
   intel: number,
   rngState: number,
-): { queued: PendingEffect[]; logs: string[]; rngState: number } {
-  const queued: PendingEffect[] = [];
+  currentTurn = 1,
+  scopeRegions: RegionKey[] = [],
+): { queued: QueuedEffect[]; logs: string[]; rngState: number } {
+  const queued: QueuedEffect[] = [];
   const logs: string[] = [];
   let nextRng = rngState;
 
@@ -393,21 +610,162 @@ export function queueDelayedEffects(
     const hidden = intel < 8;
 
     queued.push({
-      id: `${delayed.label}-${nextRng}`,
-      label: delayed.label,
-      turnsLeft: delayRoll.value,
+      id: `${option.id}-${delayed.label}-${currentTurn}-${nextRng}`,
+      turnToApply: currentTurn + delayRoll.value,
+      scope: scopeRegions.length > 0 ? { regions: scopeRegions } : "global",
+      deltas: delayed.effects,
+      tags: [...(option.tags ?? []), "delayed", delayed.label.toLowerCase()],
+      source: delayed.label,
       hidden,
-      effects: delayed.effects,
     });
 
     if (hidden) {
       logs.push("Potential latent shock detected (low confidence).");
     } else {
-      logs.push(`${delayed.label} expected in ${delayRoll.value} turns.`);
+      logs.push(`${delayed.label} expected by turn ${currentTurn + delayRoll.value}.`);
     }
   }
 
   return { queued, logs, rngState: nextRng };
+}
+
+export function applyRegionMemoryDecay(
+  regionMemory: Record<RegionKey, RegionMemoryState>,
+): Record<RegionKey, RegionMemoryState> {
+  const next = { ...regionMemory };
+  for (const region of REGION_META.map((entry) => entry.key)) {
+    next[region] = {
+      resentment: Math.max(0, regionMemory[region].resentment - 1),
+      dependency: Math.max(0, regionMemory[region].dependency - 1),
+    };
+  }
+  return next;
+}
+
+export function applyRegionMemoryForResolution(
+  regionMemory: Record<RegionKey, RegionMemoryState>,
+  scenario: Scenario,
+  option: ScenarioOption,
+) {
+  const next = applyRegionMemoryDecay(regionMemory);
+  const tags = option.tags ?? [];
+  const resentmentBase =
+    (tags.some((tag) => ["repression", "controls", "coverup", "austerity"].includes(tag)) ? 8 : 0) +
+    (option.risk === "High" ? 2 : 0);
+  const dependencyBase = tags.some((tag) => ["relief", "bailout", "continuity"].includes(tag))
+    ? 6
+    : tags.some((tag) => ["coalition", "consensus", "deescalation"].includes(tag))
+      ? 3
+      : 0;
+
+  for (const target of scenario.regionTargets) {
+    const current = next[target];
+    next[target] = {
+      resentment: clamp(current.resentment + resentmentBase, 0, 100),
+      dependency: clamp(current.dependency + dependencyBase, 0, 100),
+    };
+  }
+  return next;
+}
+
+export function computePressureGain(
+  scenarioSeverity: number,
+  hotRegions: number,
+  criticalRegions: number,
+  security: number,
+) {
+  return Math.max(
+    1,
+    2 + scenarioSeverity + hotRegions + criticalRegions * 2 - Math.floor(security / 50),
+  );
+}
+
+export function computeSpreadChance(pressure: number) {
+  return clamp(0.08 + pressure * 0.005, 0.08, 0.58);
+}
+
+export function computeBaselineDrift(doctrineId: DoctrineId | null, pressure: number): Delta<StatKey> {
+  const rules = getDoctrineRules(doctrineId);
+  const trustDecay = Math.max(0, 1 + Math.floor(pressure / 40) + rules.trustDecayModifier);
+  return { treasury: -2, trust: -trustDecay };
+}
+
+export function evaluateThresholdTriggers(
+  previousStats: Record<StatKey, number>,
+  nextStats: Record<StatKey, number>,
+  thresholdsFired: Partial<Record<ThresholdKey, boolean>>,
+  doctrineId: DoctrineId | null,
+  currentTurn: number,
+): {
+  updatedThresholds: Partial<Record<ThresholdKey, boolean>>;
+  queuedEffects: QueuedEffect[];
+  logs: string[];
+} {
+  const rules = getDoctrineRules(doctrineId);
+  const updatedThresholds = { ...thresholdsFired };
+  const queuedEffects: QueuedEffect[] = [];
+  const logs: string[] = [];
+
+  const maybeQueue = (
+    key: ThresholdKey,
+    crossed: boolean,
+    source: string,
+    pack: EffectPack,
+    tags: string[],
+  ) => {
+    if (!crossed || updatedThresholds[key]) {
+      return;
+    }
+    updatedThresholds[key] = true;
+    const scaled = scaleEffectPack(pack, rules.thresholdDanger[key] ?? 1);
+    queuedEffects.push({
+      id: `threshold-${key}-${currentTurn}`,
+      turnToApply: currentTurn + 1,
+      scope: "global",
+      deltas: scaled,
+      tags,
+      source,
+      hidden: false,
+    });
+    logs.push(`Threshold triggered: ${source}.`);
+  };
+
+  maybeQueue(
+    "trust-protests",
+    previousStats.trust >= 40 && nextStats.trust < 40,
+    "Trust collapsed below 40 (protest risk)",
+    {
+      statEffects: { stability: -2, trust: -2 },
+      actorEffects: { public: { pressure: 3 } },
+      coupRisk: 2,
+    },
+    ["threshold", "trust", "protests"],
+  );
+
+  maybeQueue(
+    "treasury-austerity",
+    previousStats.treasury >= 30 && nextStats.treasury < 30,
+    "Treasury slipped below 30 (austerity drag)",
+    {
+      statEffects: { stability: -3, trust: -2 },
+      resourceEffects: { capital: -1 },
+    },
+    ["threshold", "treasury", "austerity"],
+  );
+
+  maybeQueue(
+    "security-insurgency",
+    previousStats.security >= 35 && nextStats.security < 35,
+    "Security dropped below 35 (insurgent incident)",
+    {
+      statEffects: { security: -3, stability: -2 },
+      actorEffects: { military: { pressure: 2 }, public: { pressure: 2 } },
+      coupRisk: 6,
+    },
+    ["threshold", "security", "insurgency"],
+  );
+
+  return { updatedThresholds, queuedEffects, logs };
 }
 
 export function simulateRegions(
@@ -416,9 +774,14 @@ export function simulateRegions(
   option: ScenarioOption,
   security: number,
   rngState: number,
+  pressure = 0,
+  regionMemory: Record<RegionKey, RegionMemoryState> = buildInitialRegionMemory(),
 ) {
   const next = { ...regions };
+  const impacted = new Set<RegionKey>();
   let nextRng = rngState;
+
+  const effectiveSeverity = clamp(scenario.severity + Math.floor(pressure / 25), 1, 7);
 
   for (const region of REGION_META.map((entry) => entry.key)) {
     next[region] = clamp(next[region] - 2);
@@ -427,29 +790,56 @@ export function simulateRegions(
   for (const target of scenario.regionTargets) {
     const roll = randomInt(nextRng, 0, 4);
     nextRng = roll.nextState;
+    const memory = regionMemory[target];
+    const resentmentBias = Math.floor(memory.resentment / 25);
+    const dependencyBias = Math.floor(memory.dependency / 35);
     next[target] = clamp(
-      next[target] + scenario.severity * 6 + option.spread * 3 + roll.value,
+      next[target] + effectiveSeverity * 6 + option.spread * 3 + roll.value + resentmentBias - dependencyBias,
     );
+    impacted.add(target);
   }
 
-  const spillRoll = randomInt(nextRng, 0, REGION_META.length - 1);
-  nextRng = spillRoll.nextState;
-  const spillRegion = REGION_META[spillRoll.value].key;
-  next[spillRegion] = clamp(next[spillRegion] + scenario.severity * 2);
+  let spillCount = 1;
+  const extraSpread = randomChance(nextRng, computeSpreadChance(pressure));
+  nextRng = extraSpread.nextState;
+  if (extraSpread.hit) {
+    spillCount += 1;
+  }
+  if (pressure >= 75) {
+    const secondSpread = randomChance(nextRng, 0.35);
+    nextRng = secondSpread.nextState;
+    if (secondSpread.hit) {
+      spillCount += 1;
+    }
+  }
+
+  for (let i = 0; i < spillCount; i += 1) {
+    const spillRoll = randomInt(nextRng, 0, REGION_META.length - 1);
+    nextRng = spillRoll.nextState;
+    const spillRegion = REGION_META[spillRoll.value].key;
+    next[spillRegion] = clamp(next[spillRegion] + effectiveSeverity * 2 + Math.floor(pressure / 25));
+    impacted.add(spillRegion);
+  }
 
   const mitigationRoll = randomInt(nextRng, 0, REGION_META.length - 1);
   nextRng = mitigationRoll.nextState;
   const mitigationRegion = REGION_META[mitigationRoll.value].key;
   const mitigation = Math.floor(security / 12) + 2;
   next[mitigationRegion] = clamp(next[mitigationRegion] - mitigation);
+  impacted.add(mitigationRegion);
 
   const hotRegions = REGION_META.filter((region) => next[region.key] >= 70).length;
   const criticalRegions = REGION_META.filter((region) => next[region.key] >= 85).length;
 
   return {
     regions: next,
-    statPenalty: { trust: -hotRegions, stability: -criticalRegions } as Delta<StatKey>,
-    coupRiskDelta: criticalRegions * 3,
+    impactedRegions: [...impacted],
+    effectiveSeverity,
+    statPenalty: {
+      trust: -hotRegions - Math.floor(pressure / 30),
+      stability: -criticalRegions,
+    } as Delta<StatKey>,
+    coupRiskDelta: criticalRegions * 3 + Math.floor(pressure / 18),
     summary: `${hotRegions} hot / ${criticalRegions} critical`,
     rngState: nextRng,
   };
@@ -460,6 +850,7 @@ export function computeSystemCoupling(
   resources: Record<ResourceKey, number>,
   actors: Record<ActorKey, ActorState>,
   doctrineId: DoctrineId | null,
+  pressure = 0,
 ) {
   let statEffects: Delta<StatKey> = {};
   let resourceEffects: Delta<ResourceKey> = {};
@@ -509,20 +900,25 @@ export function computeSystemCoupling(
   if (resources.intel < 3) {
     statEffects = mergeDelta(statEffects, { influence: -2, security: -1 });
   }
+  if (pressure >= 60) {
+    statEffects = mergeDelta(statEffects, { trust: -1, stability: -1 });
+    coupRisk += 2;
+  }
 
   return { statEffects, resourceEffects, actorEffects, coupRisk };
 }
 
-export function describeEstimatedImpact(option: ScenarioOption, profile: IntelProfile) {
+export function describeEstimatedImpact(option: ScenarioOption, profile: IntelProfile, pressure = 0) {
+  const variance = computeOutcomeVariance(profile.variance, null, pressure);
   const lines = STAT_META.map((stat) => {
     const base = option.statEffects[stat.key];
     if (!base) {
       return null;
     }
-    const range = estimateEffectRange(base, profile.variance);
-    return `${stat.label} ${range.min > 0 ? "+" : ""}${range.min} to ${
-      range.max > 0 ? "+" : ""
-    }${range.max}`;
+    const range = estimateEffectRange(base, variance);
+    return `${stat.label} ${range.min > 0 ? "+" : ""}${range.min} to ${range.max > 0 ? "+" : ""}${
+      range.max
+    }`;
   }).filter((line): line is string => Boolean(line));
 
   return lines.slice(0, 3).join(" | ");
@@ -558,7 +954,8 @@ export function isGameStateLike(value: unknown): value is GameState {
     isRecord(value.stats) &&
     isRecord(value.resources) &&
     isRecord(value.actors) &&
-    isRecord(value.regions)
+    isRecord(value.regions) &&
+    isRecord(value.regionMemory)
   );
 }
 
