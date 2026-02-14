@@ -14,7 +14,7 @@ import {
 import { ACTOR_META, REGION_META } from "./data";
 import { getScenario, regionClass } from "./engine";
 import { REGION_ACTOR_FOCUS, RegionTheaterMap } from "./region-theater-map";
-import type { GameState, RegionKey } from "./types";
+import type { ActorKey, GameState, RegionKey } from "./types";
 
 const StateMeshScene = dynamic(
   () => import("./three/Scene").then((mod) => mod.StateMeshScene),
@@ -29,9 +29,10 @@ const StateMeshScene = dynamic(
 interface ActorsRegionsCardProps {
   game: GameState;
   highlightedRegions: RegionKey[];
+  highlightedActors: ActorKey[];
 }
 
-export function ActorsRegionsCard({ game, highlightedRegions }: ActorsRegionsCardProps) {
+export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors }: ActorsRegionsCardProps) {
   const [showThreeLayer, setShowThreeLayer] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<RegionKey>("capital");
   const activeScenarioTargets = useMemo(
@@ -104,7 +105,9 @@ export function ActorsRegionsCard({ game, highlightedRegions }: ActorsRegionsCar
             return (
               <div
                 key={actor.key}
-                className="rounded-md border bg-gradient-to-b from-background to-muted/30 p-3"
+                className={`rounded-md border bg-gradient-to-b from-background to-muted/30 p-3 transition-colors ${
+                  highlightedActors.includes(actor.key) ? "border-primary/60 bg-primary/5 animate-pulse" : ""
+                }`}
               >
                 <div className="mb-2 flex items-center justify-between text-xs">
                   <span className="font-medium">{actor.label}</span>

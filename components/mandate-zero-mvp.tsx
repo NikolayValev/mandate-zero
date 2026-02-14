@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BUILT_IN_DEMO_SEEDS,
   CUSTOM_SEEDS_STORAGE_KEY,
@@ -25,7 +25,6 @@ import {
   applyStatEffects,
   clamp,
   computeBaselineDrift,
-  computeOutcomeVariance,
   computePressureGain,
   computeSystemCoupling,
   createInitialGame,
@@ -46,13 +45,13 @@ import {
   randomChance,
   randomInt,
   reduceCooldowns,
-  rollUncertainStatEffects,
   sampleActionOutcome,
   simulateRegions,
   snapshotCoreSystems,
   summarizeDelta,
 } from "@/components/mandate-zero/engine";
 import type {
+  ActorKey,
   ActorEffects,
   CausalityEntry,
   CausalityStep,
@@ -160,6 +159,7 @@ export function MandateZeroMvp() {
   const [causalityHistory, setCausalityHistory] = useState<CausalityEntry[]>([]);
   const [selectedCausalityId, setSelectedCausalityId] = useState<string | null>(null);
   const [highlightedSystems, setHighlightedSystems] = useState<CoreSystemKey[]>([]);
+  const [highlightedActors, setHighlightedActors] = useState<ActorKey[]>([]);
   const [highlightedRegions, setHighlightedRegions] = useState<RegionKey[]>([]);
   const [showDebugNumbers, setShowDebugNumbers] = useState(false);
   const [seedInput, setSeedInput] = useState(DEFAULT_SEED);
@@ -168,6 +168,7 @@ export function MandateZeroMvp() {
   const [newSeedValue, setNewSeedValue] = useState("");
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
+  const highlightClearTimeoutRef = useRef<number | null>(null);
 
   const withSystemHistory = (
     previous: GameState,
@@ -182,6 +183,46 @@ export function MandateZeroMvp() {
       lastTurnSystems: previousSnapshot,
       systemHistory: [...previous.systemHistory, nextSnapshot].slice(-8),
     };
+  };
+
+  const statKeysFromDelta = (delta: Delta<StatKey>) =>
+    (Object.entries(delta) as Array<[StatKey, number]>)
+      .filter(([, value]) => value !== 0)
+      .map(([key]) => key);
+
+  const actorKeysFromDeltas = (loyaltyDelta: Delta<ActorKey>, pressureDelta: Delta<ActorKey>) => {
+    const impacted = new Set<ActorKey>();
+    for (const [key, value] of Object.entries(loyaltyDelta) as Array<[ActorKey, number]>) {
+      if (value !== 0) {
+        impacted.add(key);
+      }
+    }
+    for (const [key, value] of Object.entries(pressureDelta) as Array<[ActorKey, number]>) {
+      if (value !== 0) {
+        impacted.add(key);
+      }
+    }
+    return [...impacted];
+  };
+
+  const flashConsequenceHighlights = (
+    systems: CoreSystemKey[],
+    regions: RegionKey[],
+    actors: ActorKey[],
+  ) => {
+    setHighlightedSystems(systems);
+    setHighlightedRegions(regions);
+    setHighlightedActors(actors);
+
+    if (highlightClearTimeoutRef.current !== null) {
+      window.clearTimeout(highlightClearTimeoutRef.current);
+    }
+    highlightClearTimeoutRef.current = window.setTimeout(() => {
+      setHighlightedSystems([]);
+      setHighlightedRegions([]);
+      setHighlightedActors([]);
+      highlightClearTimeoutRef.current = null;
+    }, 900) as unknown as number;
   };
 
   const appendCausalityEntry = (
@@ -199,6 +240,14 @@ export function MandateZeroMvp() {
     };
     setCausalityHistory((prev) => [entry, ...prev].slice(0, 18));
   };
+
+  useEffect(() => {
+    return () => {
+      if (highlightClearTimeoutRef.current !== null) {
+        window.clearTimeout(highlightClearTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -269,10 +318,6 @@ export function MandateZeroMvp() {
     () => getIntelProfile(game.resources.intel, game.doctrine),
     [game.doctrine, game.resources.intel],
   );
-  const outcomeVariance = useMemo(
-    () => computeOutcomeVariance(intelProfile.variance, game.doctrine, game.pressure),
-    [game.doctrine, game.pressure, intelProfile.variance],
-  );
   const allSeeds = useMemo(() => [...BUILT_IN_DEMO_SEEDS, ...customSeeds], [customSeeds]);
   const optionOutcomeEstimates = useMemo(() => {
     const entries = scenario.options.map((option) => [
@@ -312,6 +357,7 @@ export function MandateZeroMvp() {
     setCausalityHistory([]);
     setSelectedCausalityId(null);
     setHighlightedSystems([]);
+    setHighlightedActors([]);
     setHighlightedRegions([]);
     setSeedMessage(`Loaded seed '${normalizedSeed}'.`);
   };
@@ -504,6 +550,11 @@ export function MandateZeroMvp() {
       lastActorLoyaltyDelta: actorApplication.loyaltyDelta,
       lastActorPressureDelta: actorApplication.pressureDelta,
     }));
+    flashConsequenceHighlights(
+      statKeysFromDelta(rolledStats.effects),
+      [],
+      actorKeysFromDeltas(actorApplication.loyaltyDelta, actorApplication.pressureDelta),
+    );
 
     const statSummary = summarizeDelta(rolledStats.effects, STAT_META);
     const queueSummary =
@@ -540,8 +591,7 @@ export function MandateZeroMvp() {
     );
     rngState = queuedResolution.rngState;
 
-    const rolledOptionStats = rollUncertainStatEffects(option.statEffects, outcomeVariance, rngState);
-    rngState = rolledOptionStats.rngState;
+    const rolledOptionStats = sampleActionOutcome(game, option, scenario.id);
 
     const queuedDelayed = queueDelayedEffects(
       option,
@@ -733,6 +783,15 @@ export function MandateZeroMvp() {
       lastActorLoyaltyDelta: loyaltyDelta,
       lastActorPressureDelta: pressureDelta,
     }));
+    const affectedSystems: CoreSystemKey[] = [
+      ...statKeysFromDelta(statDelta),
+      ...(pressure !== game.pressure ? (["pressure"] as const) : []),
+    ];
+    flashConsequenceHighlights(
+      [...new Set(affectedSystems)],
+      regionSimulation.impactedRegions,
+      actorKeysFromDeltas(loyaltyDelta, pressureDelta),
+    );
 
     const optionSummary = summarizeDelta(rolledOptionStats.effects, STAT_META);
     const queueLogs = [...queuedResolution.logs, ...queuedDelayed.logs, ...thresholdTriggers.logs];
@@ -877,7 +936,11 @@ export function MandateZeroMvp() {
           showDebugNumbers={showDebugNumbers}
           onToggleDebugNumbers={() => setShowDebugNumbers((prev) => !prev)}
         />
-        <ActorsRegionsCard game={game} highlightedRegions={highlightedRegions} />
+        <ActorsRegionsCard
+          game={game}
+          highlightedRegions={highlightedRegions}
+          highlightedActors={highlightedActors}
+        />
       </div>
     </div>
   );
