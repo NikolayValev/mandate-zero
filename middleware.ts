@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function middleware(_request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  void request;
   return NextResponse.next();
 }
 
