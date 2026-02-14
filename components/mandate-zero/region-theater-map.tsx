@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { clamp } from "./engine";
 import type { ActorKey, GameState, RegionKey } from "./types";
@@ -60,19 +60,38 @@ export const REGION_ACTOR_FOCUS: Record<RegionKey, ActorKey> = {
 interface RegionTheaterMapProps {
   game: GameState;
   highlightedRegions?: RegionKey[];
+  selectedRegion?: RegionKey;
+  onSelectRegion?: (region: RegionKey) => void;
 }
 
-export function RegionTheaterMap({ game, highlightedRegions = [] }: RegionTheaterMapProps) {
+export function RegionTheaterMap({
+  game,
+  highlightedRegions = [],
+  selectedRegion,
+  onSelectRegion,
+}: RegionTheaterMapProps) {
   const regionKeys = useMemo(() => Object.keys(REGION_LAYOUT) as RegionKey[], []);
-  const [selectedRegion, setSelectedRegion] = useState<RegionKey>("capital");
+  const [internalSelectedRegion, setInternalSelectedRegion] = useState<RegionKey>("capital");
   const [isResolving, setIsResolving] = useState(false);
   const previousStressRef = useRef(game.regions);
+  const activeRegion = selectedRegion ?? internalSelectedRegion;
+
+  const handleSelectRegion = useCallback(
+    (region: RegionKey) => {
+      if (onSelectRegion) {
+        onSelectRegion(region);
+        return;
+      }
+      setInternalSelectedRegion(region);
+    },
+    [onSelectRegion],
+  );
 
   useEffect(() => {
     if (highlightedRegions.length > 0) {
-      setSelectedRegion(highlightedRegions[0]);
+      handleSelectRegion(highlightedRegions[0]);
     }
-  }, [highlightedRegions]);
+  }, [highlightedRegions, handleSelectRegion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,10 +117,10 @@ export function RegionTheaterMap({ game, highlightedRegions = [] }: RegionTheate
     };
   }, [game.turn, game.regions]);
 
-  const focusedActorKey = REGION_ACTOR_FOCUS[selectedRegion];
+  const focusedActorKey = REGION_ACTOR_FOCUS[activeRegion];
   const focusedActor = game.actors[focusedActorKey];
-  const focusedStress = game.regions[selectedRegion];
-  const focusedStressDelta = focusedStress - previousStressRef.current[selectedRegion];
+  const focusedStress = game.regions[activeRegion];
+  const focusedStressDelta = focusedStress - previousStressRef.current[activeRegion];
   const focusedAltitude = crisisAltitude(
     focusedStress,
     focusedActor.pressure,
@@ -129,7 +148,7 @@ export function RegionTheaterMap({ game, highlightedRegions = [] }: RegionTheate
             const pressure = actor.pressure;
             const loyalty = actor.loyalty;
             const altitude = crisisAltitude(stress, pressure, loyalty);
-            const isSelected = selectedRegion === regionKey;
+            const isSelected = activeRegion === regionKey;
             const isHighlighted = highlightedRegions.includes(regionKey);
             const pulseClass =
               stress >= 85
@@ -142,7 +161,7 @@ export function RegionTheaterMap({ game, highlightedRegions = [] }: RegionTheate
               <button
                 key={regionKey}
                 type="button"
-                onClick={() => setSelectedRegion(regionKey)}
+                onClick={() => handleSelectRegion(regionKey)}
                 className={`absolute w-[108px] -translate-x-1/2 -translate-y-1/2 text-left [transform-style:preserve-3d] transition-all duration-500 ${
                   isSelected ? "z-30" : "z-10"
                 }`}
@@ -195,7 +214,7 @@ export function RegionTheaterMap({ game, highlightedRegions = [] }: RegionTheate
           </Badge>
         </div>
 
-        <p className="text-sm font-medium">{REGION_LAYOUT[selectedRegion].label}</p>
+        <p className="text-sm font-medium">{REGION_LAYOUT[activeRegion].label}</p>
         <p className="text-[11px] text-white/80">
           Stress {focusedStress}
           {focusedStressDelta !== 0 ? ` (${focusedStressDelta > 0 ? "+" : ""}${focusedStressDelta})` : ""}

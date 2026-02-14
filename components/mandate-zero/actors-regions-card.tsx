@@ -1,6 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,9 +12,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ACTOR_META, REGION_META } from "./data";
-import { regionClass } from "./engine";
+import { getScenario, regionClass } from "./engine";
 import { REGION_ACTOR_FOCUS, RegionTheaterMap } from "./region-theater-map";
 import type { GameState, RegionKey } from "./types";
+
+const StateMeshScene = dynamic(
+  () => import("./three/Scene").then((mod) => mod.StateMeshScene),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[220px] w-full animate-pulse rounded-lg border bg-muted/30" />
+    ),
+  },
+);
 
 interface ActorsRegionsCardProps {
   game: GameState;
@@ -19,6 +32,27 @@ interface ActorsRegionsCardProps {
 }
 
 export function ActorsRegionsCard({ game, highlightedRegions }: ActorsRegionsCardProps) {
+  const [showThreeLayer, setShowThreeLayer] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<RegionKey>("capital");
+  const activeScenarioTargets = useMemo(
+    () => getScenario(game.scenarioId).regionTargets,
+    [game.scenarioId],
+  );
+  const queuedFalloutRegions = useMemo(() => {
+    const regions = new Set<RegionKey>();
+    for (const queued of game.effectsQueue) {
+      if (queued.turnToApply > game.turn + 1) {
+        continue;
+      }
+      if (queued.scope !== "global" && queued.scope.regions) {
+        for (const region of queued.scope.regions) {
+          regions.add(region);
+        }
+      }
+    }
+    return [...regions];
+  }, [game.effectsQueue, game.turn]);
+
   return (
     <Card>
       <CardHeader>
@@ -28,7 +62,41 @@ export function ActorsRegionsCard({ game, highlightedRegions }: ActorsRegionsCar
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <RegionTheaterMap game={game} highlightedRegions={highlightedRegions} />
+        <RegionTheaterMap
+          game={game}
+          highlightedRegions={highlightedRegions}
+          selectedRegion={selectedRegion}
+          onSelectRegion={setSelectedRegion}
+        />
+
+        <div className="rounded-md border p-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Optional 3D state layer. Tap a block to select region in the same panel.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-11 px-4"
+              onClick={() => setShowThreeLayer((prev) => !prev)}
+            >
+              {showThreeLayer ? "Hide 3D Layer" : "Show 3D Layer"}
+            </Button>
+          </div>
+          {showThreeLayer ? (
+            <div className="mt-2">
+              <StateMeshScene
+                game={game}
+                selectedRegion={selectedRegion}
+                highlightedRegions={highlightedRegions}
+                activeCrisisRegions={activeScenarioTargets}
+                queuedFalloutRegions={queuedFalloutRegions}
+                onSelectRegion={setSelectedRegion}
+              />
+            </div>
+          ) : null}
+        </div>
 
         <div className="grid gap-2 lg:grid-cols-2">
           {ACTOR_META.map((actor) => {
@@ -78,7 +146,7 @@ export function ActorsRegionsCard({ game, highlightedRegions }: ActorsRegionsCar
                 key={region.key}
                 className={`rounded-md border p-2 text-xs ${regionClass(stress)} ${
                   highlightedRegions.includes(region.key) ? "ring-2 ring-primary/60" : ""
-                }`}
+                } ${selectedRegion === region.key ? "ring-2 ring-cyan-500/70" : ""}`}
               >
                 <div className="mb-1 flex items-center justify-between">
                   <span>{region.label}</span>
