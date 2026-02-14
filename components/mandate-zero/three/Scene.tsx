@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
+import { REGION_META } from "../data";
 import type { GameState, RegionKey } from "../types";
 import { Regions } from "./Regions";
 
@@ -21,8 +23,23 @@ export function StateMeshScene({
   queuedFalloutRegions,
   onSelectRegion,
 }: StateMeshSceneProps) {
+  const [hoveredRegion, setHoveredRegion] = useState<RegionKey | null>(null);
+  const activeRegion = hoveredRegion ?? selectedRegion;
+  const labelLayout = useMemo(
+    () =>
+      ({
+        north: { left: "34%", top: "30%" },
+        south: { left: "37%", top: "76%" },
+        capital: { left: "52%", top: "48%" },
+        industry: { left: "68%", top: "64%" },
+        border: { left: "79%", top: "33%" },
+        coast: { left: "20%", top: "58%" },
+      }) as Record<RegionKey, { left: string; top: string }>,
+    [],
+  );
+
   return (
-    <div className="h-[220px] w-full overflow-hidden rounded-lg border bg-slate-950">
+    <div className="relative h-[220px] w-full overflow-hidden rounded-lg border bg-slate-950">
       <Canvas
         frameloop="always"
         dpr={[1, 1.5]}
@@ -41,12 +58,42 @@ export function StateMeshScene({
         <Regions
           game={game}
           selectedRegion={selectedRegion}
+          hoveredRegion={hoveredRegion}
           highlightedRegions={highlightedRegions}
           activeCrisisRegions={activeCrisisRegions}
           queuedFalloutRegions={queuedFalloutRegions}
+          onHoverRegion={setHoveredRegion}
           onSelectRegion={onSelectRegion}
         />
       </Canvas>
+      <div className="pointer-events-none absolute inset-0">
+        {REGION_META.map((region) => {
+          const isSelected = selectedRegion === region.key;
+          const isHovered = hoveredRegion === region.key;
+          const isHighlighted = highlightedRegions.includes(region.key);
+          const layout = labelLayout[region.key];
+          return (
+            <div
+              key={region.key}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded px-1.5 py-0.5 text-[10px] font-medium transition ${
+                isSelected
+                  ? "bg-cyan-500/85 text-cyan-950"
+                  : isHovered
+                    ? "bg-slate-100/85 text-slate-900"
+                    : isHighlighted
+                      ? "bg-amber-300/85 text-amber-950"
+                      : "bg-slate-900/70 text-slate-200"
+              }`}
+              style={{ left: layout.left, top: layout.top }}
+            >
+              {region.label}
+            </div>
+          );
+        })}
+      </div>
+      <p className="pointer-events-none absolute bottom-1 left-2 rounded bg-slate-900/75 px-2 py-0.5 text-[10px] text-slate-200">
+        Focus: {REGION_META.find((entry) => entry.key === activeRegion)?.label ?? "Capital"}
+      </p>
     </div>
   );
 }

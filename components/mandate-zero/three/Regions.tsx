@@ -2,7 +2,7 @@
 
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import type { Mesh } from "three";
+import type { Group } from "three";
 import { REGION_ACTOR_FOCUS } from "../region-theater-map";
 import type { GameState, RegionKey } from "../types";
 
@@ -31,9 +31,11 @@ interface RegionBlockProps {
   region: RegionKey;
   game: GameState;
   selectedRegion: RegionKey;
+  hoveredRegion: RegionKey | null;
   highlightedRegions: RegionKey[];
   activeCrisisRegions: RegionKey[];
   queuedFalloutRegions: RegionKey[];
+  onHoverRegion: (region: RegionKey | null) => void;
   onSelectRegion: (region: RegionKey) => void;
 }
 
@@ -41,64 +43,90 @@ function RegionBlock({
   region,
   game,
   selectedRegion,
+  hoveredRegion,
   highlightedRegions,
   activeCrisisRegions,
   queuedFalloutRegions,
+  onHoverRegion,
   onSelectRegion,
 }: RegionBlockProps) {
-  const meshRef = useRef<Mesh>(null);
+  const groupRef = useRef<Group>(null);
   const stress = game.regions[region];
   const actor = game.actors[REGION_ACTOR_FOCUS[region]];
   const baseHeight = 0.3 + stress / 95;
   const isSelected = selectedRegion === region;
+  const isHovered = hoveredRegion === region;
   const isHighlighted = highlightedRegions.includes(region);
   const isPulsing = activeCrisisRegions.includes(region) || queuedFalloutRegions.includes(region);
   const color = regionColor(actor.loyalty, actor.pressure);
 
   useFrame(({ clock }) => {
-    if (!meshRef.current) {
+    if (!groupRef.current) {
       return;
     }
     const pulse = isPulsing ? Math.sin(clock.elapsedTime * 4.4) * 0.05 : 0;
     const nextScale = baseHeight + pulse + (isSelected ? 0.12 : 0);
-    meshRef.current.scale.y = nextScale;
+    groupRef.current.scale.y = nextScale;
     // Keep block bases anchored to the floor as height changes.
-    meshRef.current.position.y = nextScale / 2;
+    groupRef.current.position.y = nextScale / 2;
   });
 
   return (
-    <mesh
-      ref={meshRef}
+    <group
+      ref={groupRef}
       position={[REGION_POSITIONS[region][0], baseHeight / 2, REGION_POSITIONS[region][1]]}
+      onPointerOver={(event) => {
+        event.stopPropagation();
+        onHoverRegion(region);
+      }}
+      onPointerOut={(event) => {
+        event.stopPropagation();
+        onHoverRegion(null);
+      }}
       onPointerDown={() => onSelectRegion(region)}
     >
-      <boxGeometry args={[0.8, 1, 0.8]} />
-      <meshStandardMaterial
-        color={color}
-        emissive={isHighlighted ? "#ffffff" : isPulsing ? "#7dd3fc" : "#000000"}
-        emissiveIntensity={isHighlighted ? 0.22 : isPulsing ? 0.12 : 0}
-        roughness={0.6}
-        metalness={0.1}
-      />
-    </mesh>
+      <mesh>
+        <boxGeometry args={[0.8, 1, 0.8]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={isHighlighted ? "#ffffff" : isPulsing ? "#7dd3fc" : "#000000"}
+          emissiveIntensity={isHighlighted ? 0.22 : isPulsing ? 0.12 : 0}
+          roughness={0.6}
+          metalness={0.1}
+        />
+      </mesh>
+      <mesh scale={[1.04, 1.02, 1.04]}>
+        <boxGeometry args={[0.8, 1, 0.8]} />
+        <meshBasicMaterial
+          color={isSelected ? "#22d3ee" : isHovered ? "#f8fafc" : "#334155"}
+          wireframe
+          transparent
+          opacity={isSelected ? 0.95 : isHovered ? 0.85 : 0.45}
+        />
+      </mesh>
+    </group>
   );
 }
 
 interface RegionsProps {
   game: GameState;
   selectedRegion: RegionKey;
+  hoveredRegion: RegionKey | null;
   highlightedRegions: RegionKey[];
   activeCrisisRegions: RegionKey[];
   queuedFalloutRegions: RegionKey[];
+  onHoverRegion: (region: RegionKey | null) => void;
   onSelectRegion: (region: RegionKey) => void;
 }
 
 export function Regions({
   game,
   selectedRegion,
+  hoveredRegion,
   highlightedRegions,
   activeCrisisRegions,
   queuedFalloutRegions,
+  onHoverRegion,
   onSelectRegion,
 }: RegionsProps) {
   const regions = useMemo(() => Object.keys(REGION_POSITIONS) as RegionKey[], []);
@@ -110,9 +138,11 @@ export function Regions({
           region={region}
           game={game}
           selectedRegion={selectedRegion}
+          hoveredRegion={hoveredRegion}
           highlightedRegions={highlightedRegions}
           activeCrisisRegions={activeCrisisRegions}
           queuedFalloutRegions={queuedFalloutRegions}
+          onHoverRegion={onHoverRegion}
           onSelectRegion={onSelectRegion}
         />
       ))}
