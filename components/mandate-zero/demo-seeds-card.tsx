@@ -11,9 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DEFAULT_SEED } from "./data";
+import type { AppLanguage } from "./i18n";
 import type { DemoSeed } from "./types";
 
 interface DemoSeedsCardProps {
+  language: AppLanguage;
   seedInput: string;
   onSeedInputChange: (value: string) => void;
   onStartRunWithSeed: (seedValue: string) => void;
@@ -29,6 +31,7 @@ interface DemoSeedsCardProps {
 }
 
 export function DemoSeedsCard({
+  language,
   seedInput,
   onSeedInputChange,
   onStartRunWithSeed,
@@ -45,28 +48,36 @@ export function DemoSeedsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Demo Seeds</CardTitle>
+        <CardTitle>{language === "bg" ? "Демо сийдове" : "Demo Seeds"}</CardTitle>
         <CardDescription className="hidden sm:block">
-          Scenario presets for deterministic demos.
+          {language === "bg"
+            ? "Готови сценарии за детерминистични демонстрации."
+            : "Scenario presets for deterministic demos."}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <details className="group rounded-lg border p-4">
           <summary className="flex cursor-pointer list-none items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Seed Library</p>
-              <p className="text-xs text-muted-foreground">{allSeeds.length} scenarios</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                {language === "bg" ? "Библиотека със сийдове" : "Seed Library"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {allSeeds.length} {language === "bg" ? "сценария" : "scenarios"}
+              </p>
             </div>
-            <span className="text-xs text-muted-foreground group-open:hidden">Expand</span>
+            <span className="text-xs text-muted-foreground group-open:hidden">
+              {language === "bg" ? "Разгъни" : "Expand"}
+            </span>
             <span className="hidden text-xs text-muted-foreground group-open:inline">
-              Collapse
+              {language === "bg" ? "Свий" : "Collapse"}
             </span>
           </summary>
 
           <div className="mt-4 space-y-4">
             <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-end">
               <div>
-                <Label htmlFor="seed-input">Current Seed</Label>
+                <Label htmlFor="seed-input">{language === "bg" ? "Текущ сийд" : "Current Seed"}</Label>
                 <Input
                   id="seed-input"
                   value={seedInput}
@@ -75,22 +86,22 @@ export function DemoSeedsCard({
                 />
               </div>
               <Button onClick={() => onStartRunWithSeed(seedInput)} variant="outline">
-                Restart
+                {language === "bg" ? "Рестарт" : "Restart"}
               </Button>
             </div>
 
             <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto] md:items-end">
               <div>
-                <Label htmlFor="new-seed-name">Seed Name</Label>
+                <Label htmlFor="new-seed-name">{language === "bg" ? "Име на сийд" : "Seed Name"}</Label>
                 <Input
                   id="new-seed-name"
                   value={newSeedName}
                   onChange={(event) => onNewSeedNameChange(event.target.value)}
-                  placeholder="Investor Panic Demo"
+                  placeholder={language === "bg" ? "Демо: пазарна паника" : "Investor Panic Demo"}
                 />
               </div>
               <div>
-                <Label htmlFor="new-seed-value">Seed Value</Label>
+                <Label htmlFor="new-seed-value">{language === "bg" ? "Стойност на сийд" : "Seed Value"}</Label>
                 <Input
                   id="new-seed-value"
                   value={newSeedValue}
@@ -98,13 +109,13 @@ export function DemoSeedsCard({
                   placeholder={seedInput}
                 />
               </div>
-              <Button onClick={onAddCustomSeed}>Add</Button>
+              <Button onClick={onAddCustomSeed}>{language === "bg" ? "Добави" : "Add"}</Button>
             </div>
 
             <div className="flex items-center justify-between gap-2">
               {seedMessage ? <p className="text-xs text-muted-foreground">{seedMessage}</p> : <span />}
               <Button onClick={onClearLocalData} variant="destructive" size="sm">
-                Clear Local Data
+                {language === "bg" ? "Изчисти локалните данни" : "Clear Local Data"}
               </Button>
             </div>
 
@@ -124,7 +135,7 @@ export function DemoSeedsCard({
                       variant="outline"
                       onClick={() => onStartRunWithSeed(seed.value)}
                     >
-                      Load
+                      {language === "bg" ? "Зареди" : "Load"}
                     </Button>
                     {seed.custom ? (
                       <Button
@@ -132,7 +143,7 @@ export function DemoSeedsCard({
                         variant="destructive"
                         onClick={() => onRemoveCustomSeed(seed.id)}
                       >
-                        Remove
+                        {language === "bg" ? "Премахни" : "Remove"}
                       </Button>
                     ) : null}
                   </div>
@@ -145,4 +156,3 @@ export function DemoSeedsCard({
     </Card>
   );
 }
-

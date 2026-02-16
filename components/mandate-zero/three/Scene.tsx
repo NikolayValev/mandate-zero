@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { REGION_META } from "../data";
+import { getRegionLabel, type AppLanguage } from "../i18n";
 import type { GameState, RegionKey } from "../types";
 import { Regions } from "./Regions";
 
 interface StateMeshSceneProps {
   game: GameState;
+  language: AppLanguage;
   selectedRegion: RegionKey;
   highlightedRegions: RegionKey[];
   activeCrisisRegions: RegionKey[];
@@ -17,6 +19,7 @@ interface StateMeshSceneProps {
 
 export function StateMeshScene({
   game,
+  language,
   selectedRegion,
   highlightedRegions,
   activeCrisisRegions,
@@ -86,13 +89,13 @@ export function StateMeshScene({
               }`}
               style={{ left: layout.left, top: layout.top }}
             >
-              {region.label}
+              {getRegionLabel(region.key, language)}
             </div>
           );
         })}
       </div>
       <p className="pointer-events-none absolute bottom-1 left-2 rounded bg-slate-900/75 px-2 py-0.5 text-[10px] text-slate-200">
-        Focus: {REGION_META.find((entry) => entry.key === activeRegion)?.label ?? "Capital"}
+        {language === "bg" ? "Фокус:" : "Focus:"} {getRegionLabel(activeRegion, language)}
       </p>
     </div>
   );

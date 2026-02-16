@@ -9,12 +9,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { STAT_META, STRATEGIC_ACTIONS } from "./data";
 import { riskVariant } from "./engine";
+import {
+  getConfidenceLabel,
+  getRiskLabel,
+  getStatLabel,
+  type AppLanguage,
+} from "./i18n";
 import { buildActionExplanation } from "./situation-copy";
 import type { OutcomeEstimate, QueuedEffect, StrategicAction } from "./types";
 
 interface StrategicActionsCardProps {
+  language: AppLanguage;
+  actions: StrategicAction[];
   getActionDisabledReason: (action: StrategicAction) => string | null;
   getActionPointCost: (action: StrategicAction) => number;
   getActionOutcomeEstimate: (action: StrategicAction) => OutcomeEstimate[];
@@ -23,6 +30,8 @@ interface StrategicActionsCardProps {
 }
 
 export function StrategicActionsCard({
+  language,
+  actions,
   getActionDisabledReason,
   getActionPointCost,
   getActionOutcomeEstimate,
@@ -32,42 +41,49 @@ export function StrategicActionsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Strategic Actions</CardTitle>
+        <CardTitle>{language === "bg" ? "Стратегически действия" : "Strategic Actions"}</CardTitle>
         <CardDescription>
-          Spend AP before crisis resolution. Empty AP triggers overextension penalties.
+          {language === "bg"
+            ? "Изразходвай AP преди развръзката. Нулев AP активира санкции за преразтягане."
+            : "Spend AP before crisis resolution. Empty AP triggers overextension penalties."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {STRATEGIC_ACTIONS.map((action) => {
+        {actions.map((action) => {
           const disabledReason = getActionDisabledReason(action);
           const apCost = getActionPointCost(action);
           return (
             <div key={action.id} data-testid={`strategic-action-${action.id}`} className="rounded-lg border p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-medium">{action.title}</p>
-                <Badge variant={riskVariant(action.risk)}>Risk {action.risk}</Badge>
+                <Badge variant={riskVariant(action.risk)}>
+                  {language === "bg" ? "Риск" : "Risk"} {getRiskLabel(action.risk, language)}
+                </Badge>
               </div>
-              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">Situation</p>
-              <p className="mt-1 text-xs text-muted-foreground">{buildActionExplanation(action)}</p>
+              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+                {language === "bg" ? "Ситуация" : "Situation"}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{buildActionExplanation(action, language)}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                AP {apCost}, cooldown {action.cooldown}
+                AP {apCost}, {language === "bg" ? "възстановяване" : "cooldown"} {action.cooldown}
               </p>
               <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
-                Projected Outcome Window
+                {language === "bg" ? "Прогнозен диапазон" : "Projected Outcome Window"}
               </p>
               {(getActionOutcomeEstimate(action) ?? []).slice(0, 4).map((estimate) => {
-                const statLabel = STAT_META.find((entry) => entry.key === estimate.system)?.label ?? estimate.system;
+                const statLabel = getStatLabel(estimate.system, language);
                 const minLabel = estimate.min > 0 ? `+${estimate.min}` : `${estimate.min}`;
                 const maxLabel = estimate.max > 0 ? `+${estimate.max}` : `${estimate.max}`;
                 return (
                   <p key={`${action.id}-${estimate.system}`} className="mt-1 text-xs text-muted-foreground">
-                    {statLabel}: {minLabel} to {maxLabel} ({estimate.confidence})
+                    {statLabel}: {minLabel} {language === "bg" ? "до" : "to"} {maxLabel} (
+                    {getConfidenceLabel(estimate.confidence, language)})
                   </p>
                 );
               })}
               {upcomingEffects.length > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Queued fallout:{" "}
+                  {language === "bg" ? "Планирани последствия:" : "Queued fallout:"}{" "}
                   {upcomingEffects
                     .slice(0, 2)
                     .map((effect) => `${effect.source} (T${effect.turnToApply})`)
@@ -83,7 +99,7 @@ export function StrategicActionsCard({
                   onClick={() => onTriggerStrategicAction(action)}
                   disabled={Boolean(disabledReason)}
                 >
-                  Use
+                  {language === "bg" ? "Използвай" : "Use"}
                 </Button>
                 {disabledReason ? (
                   <span className="text-xs text-muted-foreground">{disabledReason}</span>

@@ -5,9 +5,12 @@ import {
   BUILT_IN_DEMO_SEEDS,
   CUSTOM_SEEDS_STORAGE_KEY,
   DEFAULT_SEED,
+  DOCTRINES,
+  POLICIES,
   REGION_META,
   RUN_STORAGE_KEY,
   STAT_META,
+  STRATEGIC_ACTIONS,
 } from "@/components/mandate-zero/data";
 import { ActorsRegionsCard } from "@/components/mandate-zero/actors-regions-card";
 import { DemoSeedsCard } from "@/components/mandate-zero/demo-seeds-card";
@@ -18,6 +21,15 @@ import { RunDebriefCard } from "@/components/mandate-zero/run-debrief-card";
 import { SimulationLogCard } from "@/components/mandate-zero/simulation-log-card";
 import { StrategicActionsCard } from "@/components/mandate-zero/strategic-actions-card";
 import { SystemStateCard } from "@/components/mandate-zero/system-state-card";
+import {
+  getResourceLabel,
+  localizeDemoSeed,
+  localizeDoctrine,
+  localizePolicy,
+  localizeScenario,
+  localizeStrategicAction,
+  type AppLanguage,
+} from "@/components/mandate-zero/i18n";
 import {
   applyActorEffects,
   applyEffectsQueueForTurn,
@@ -160,7 +172,11 @@ function hydrateLoadedGame(rawGame: GameState): GameState {
   };
 }
 
-export function MandateZeroMvp() {
+interface MandateZeroMvpProps {
+  language: AppLanguage;
+}
+
+export function MandateZeroMvp({ language }: MandateZeroMvpProps) {
   const [game, setGame] = useState<GameState>(() => createInitialGame(DEFAULT_SEED));
   const [history, setHistory] = useState<string[]>([]);
   const [causalityHistory, setCausalityHistory] = useState<CausalityEntry[]>([]);
@@ -322,11 +338,43 @@ export function MandateZeroMvp() {
   }, [customSeeds, storageReady]);
 
   const scenario = useMemo(() => getScenario(game.scenarioId), [game.scenarioId]);
+  const localizedScenario = useMemo(() => localizeScenario(scenario, language), [language, scenario]);
   const intelProfile = useMemo(
     () => getIntelProfile(game.resources.intel, game.doctrine),
     [game.doctrine, game.resources.intel],
   );
+  const localizedDoctrines = useMemo(
+    () => DOCTRINES.map((doctrine) => localizeDoctrine(doctrine, language)),
+    [language],
+  );
+  const localizedPolicies = useMemo(
+    () => POLICIES.map((policy) => localizePolicy(policy, language)),
+    [language],
+  );
+  const localizedStrategicActions = useMemo(
+    () => STRATEGIC_ACTIONS.map((action) => localizeStrategicAction(action, language)),
+    [language],
+  );
+  const doctrineTitleById = useMemo(
+    () =>
+      Object.fromEntries(
+        localizedDoctrines.map((doctrine) => [doctrine.id, doctrine.title]),
+      ) as Record<DoctrineId, string>,
+    [localizedDoctrines],
+  );
+  const policyTitleById = useMemo(
+    () => Object.fromEntries(localizedPolicies.map((policy) => [policy.id, policy.title])),
+    [localizedPolicies],
+  );
+  const actionTitleById = useMemo(
+    () => Object.fromEntries(localizedStrategicActions.map((action) => [action.id, action.title])),
+    [localizedStrategicActions],
+  );
   const allSeeds = useMemo(() => [...BUILT_IN_DEMO_SEEDS, ...customSeeds], [customSeeds]);
+  const displaySeeds = useMemo(
+    () => allSeeds.map((seed) => (seed.custom ? seed : localizeDemoSeed(seed, language))),
+    [allSeeds, language],
+  );
   const optionOutcomeEstimates = useMemo(() => {
     const outcomeState = {
       seedText: game.seedText,
@@ -374,7 +422,14 @@ export function MandateZeroMvp() {
   const startRunWithSeed = (seedValue: string) => {
     const normalizedSeed = normalizeSeed(seedValue);
     setSeedInput(normalizedSeed);
-    setGame(createInitialGame(normalizedSeed));
+    const nextGame = createInitialGame(normalizedSeed);
+    setGame({
+      ...nextGame,
+      message:
+        language === "bg"
+          ? "Избери доктрина, изразходвай AP и реши кризата. Отложени последствия и прагови шокове са активни."
+          : nextGame.message,
+    });
     setHistory([]);
     setCausalityHistory([]);
     setSelectedCausalityId(null);
@@ -382,7 +437,9 @@ export function MandateZeroMvp() {
     setHighlightedActors([]);
     setHighlightedRegions([]);
     setOnboardingDismissed(false);
-    setSeedMessage(`Loaded seed '${normalizedSeed}'.`);
+    setSeedMessage(
+      language === "bg" ? `Зареден сийд '${normalizedSeed}'.` : `Loaded seed '${normalizedSeed}'.`,
+    );
   };
 
   const chooseDoctrine = (doctrineId: DoctrineId) => {
@@ -397,6 +454,7 @@ export function MandateZeroMvp() {
     const stats = applyStatEffects(game.stats, selected.startEffects.statEffects ?? {});
     const resources = applyResourceEffects(game.resources, selected.startEffects.resourceEffects ?? {});
     const actorApplication = applyActorEffects(game.actors, selected.startEffects.actorEffects ?? {});
+    const doctrineTitle = doctrineTitleById[doctrineId] ?? selected.title;
 
     setGame((prev) => ({
       ...prev,
@@ -406,20 +464,30 @@ export function MandateZeroMvp() {
       resources,
       actors: actorApplication.actors,
       ...withSystemHistory(prev, stats, prev.pressure),
-      message: `${selected.title} doctrine selected. Strategic tradeoffs are now locked in.`,
+      message:
+        language === "bg"
+          ? `Избрана доктрина: ${doctrineTitle}. Стратегическите компромиси вече са заключени.`
+          : `${doctrineTitle} doctrine selected. Strategic tradeoffs are now locked in.`,
       lastStatDelta: selected.startEffects.statEffects ?? {},
       lastResourceDelta: selected.startEffects.resourceEffects ?? {},
       lastActorLoyaltyDelta: actorApplication.loyaltyDelta,
       lastActorPressureDelta: actorApplication.pressureDelta,
     }));
-    setHistory((prev) => [`Doctrine selected -> ${selected.title}`, ...prev].slice(0, 18));
+    setHistory((prev) =>
+      [
+        language === "bg"
+          ? `Избрана доктрина -> ${doctrineTitle}`
+          : `Doctrine selected -> ${doctrineTitle}`,
+        ...prev,
+      ].slice(0, 18),
+    );
     appendCausalityEntry({
       turn: game.turn,
       phase: "decision",
       actionId: selected.id,
-      actionLabel: `Doctrine: ${selected.title}`,
+      actionLabel: `${language === "bg" ? "Доктрина" : "Doctrine"}: ${doctrineTitle}`,
       crisisId: game.scenarioId,
-      crisisLabel: scenario.title,
+      crisisLabel: localizedScenario.title,
       immediateDeltas: selected.startEffects.statEffects ?? {},
       delayedEnqueued: [],
       thresholdsTriggered: [],
@@ -445,6 +513,7 @@ export function MandateZeroMvp() {
     const actorApplication = applyActorEffects(game.actors, policy.immediate.actorEffects ?? {});
     const maxActionPoints = clamp(game.maxActionPoints + (policy.maxActionPointBonus ?? 0), 1, 4);
     const actionPoints = Math.max(0, game.actionPoints - policy.apCost);
+    const policyTitle = policyTitleById[policy.id] ?? policy.title;
 
     setGame((prev) => ({
       ...prev,
@@ -457,21 +526,29 @@ export function MandateZeroMvp() {
       maxActionPoints,
       actionPoints,
       coupRisk: clamp(prev.coupRisk + (policy.immediate.coupRisk ?? 0)),
-      message: `Policy enacted: ${policy.title}. Commitment is irreversible.`,
+      message:
+        language === "bg"
+          ? `Политика приета: ${policyTitle}. Ангажиментът е необратим.`
+          : `Policy enacted: ${policyTitle}. Commitment is irreversible.`,
       lastStatDelta: policy.immediate.statEffects ?? {},
       lastResourceDelta: resourceDelta,
       lastActorLoyaltyDelta: actorApplication.loyaltyDelta,
       lastActorPressureDelta: actorApplication.pressureDelta,
     }));
 
-    setHistory((prev) => [`Policy enacted -> ${policy.title}`, ...prev].slice(0, 18));
+    setHistory((prev) =>
+      [
+        language === "bg" ? `Приета политика -> ${policyTitle}` : `Policy enacted -> ${policyTitle}`,
+        ...prev,
+      ].slice(0, 18),
+    );
     appendCausalityEntry({
       turn: game.turn,
       phase: "decision",
       actionId: policy.id,
-      actionLabel: `Policy: ${policy.title}`,
+      actionLabel: `${language === "bg" ? "Политика" : "Policy"}: ${policyTitle}`,
       crisisId: game.scenarioId,
-      crisisLabel: scenario.title,
+      crisisLabel: localizedScenario.title,
       immediateDeltas: policy.immediate.statEffects ?? {},
       delayedEnqueued: [],
       thresholdsTriggered: [],
@@ -484,20 +561,22 @@ export function MandateZeroMvp() {
 
   const getActionDisabledReason = (action: StrategicAction) => {
     if (!canPlay) {
-      return "Choose doctrine first";
+      return language === "bg" ? "Първо избери доктрина" : "Choose doctrine first";
     }
     const cooldown = game.cooldowns[action.id] ?? 0;
     if (cooldown > 0) {
-      return `Cooldown ${cooldown}`;
+      return language === "bg" ? `Възстановяване ${cooldown}` : `Cooldown ${cooldown}`;
     }
     const actionCost = getAdjustedActionCost(action);
     if (game.actionPoints < actionCost) {
-      return `Need ${actionCost} AP`;
+      return language === "bg" ? `Нужни са ${actionCost} AP` : `Need ${actionCost} AP`;
     }
     if (action.resourceCost) {
       for (const [key, cost] of Object.entries(action.resourceCost) as Array<[ResourceKey, number]>) {
         if (game.resources[key] < cost) {
-          return `Need ${cost} ${key}`;
+          return language === "bg"
+            ? `Нужни са ${cost} ${getResourceLabel(key, language)}`
+            : `Need ${cost} ${key}`;
         }
       }
     }
@@ -509,6 +588,7 @@ export function MandateZeroMvp() {
     if (reason) {
       return;
     }
+    const actionTitle = actionTitleById[action.id] ?? action.title;
 
     let rngState = game.rngState;
     const rolledStats = sampleActionOutcome(game, action, game.scenarioId);
@@ -580,8 +660,12 @@ export function MandateZeroMvp() {
       effectsQueue: [...prev.effectsQueue, ...queuedEffects],
       message:
         actionPoints === 0
-          ? `${action.title} executed. Overextension risk armed for this turn.`
-          : `${action.title} executed.`,
+          ? language === "bg"
+            ? `${actionTitle}: изпълнено. Рискът от преразтягане е активен за този ход.`
+            : `${actionTitle} executed. Overextension risk armed for this turn.`
+          : language === "bg"
+            ? `${actionTitle}: изпълнено.`
+            : `${actionTitle} executed.`,
       lastStatDelta: rolledStats.effects,
       lastResourceDelta: resourceDelta,
       lastActorLoyaltyDelta: actorApplication.loyaltyDelta,
@@ -599,16 +683,19 @@ export function MandateZeroMvp() {
         ? ` | queued: ${queuedEffects.map((effect) => `${effect.source} T${effect.turnToApply}`).join(", ")}`
         : "";
     setHistory((prev) => {
-      const line = `Strategic action -> ${action.title}${statSummary ? ` (${statSummary})` : ""}${queueSummary}`;
+      const line =
+        language === "bg"
+          ? `Стратегическо действие -> ${actionTitle}${statSummary ? ` (${statSummary})` : ""}${queueSummary}`
+          : `Strategic action -> ${actionTitle}${statSummary ? ` (${statSummary})` : ""}${queueSummary}`;
       return [line, ...prev].slice(0, 18);
     });
     appendCausalityEntry({
       turn: game.turn,
       phase: "decision",
       actionId: action.id,
-      actionLabel: `Action: ${action.title}`,
+      actionLabel: `${language === "bg" ? "Действие" : "Action"}: ${actionTitle}`,
       crisisId: game.scenarioId,
-      crisisLabel: scenario.title,
+      crisisLabel: localizedScenario.title,
       immediateDeltas: rolledStats.effects,
       delayedEnqueued:
         queuedEffects.length > 0
@@ -724,7 +811,10 @@ export function MandateZeroMvp() {
     let coupRisk = clamp(game.coupRisk + coupRiskDelta);
     let phase: Phase = "playing";
     let collapseCount = game.collapseCount;
-    let message = `${scenario.title}: ${option.title}. ${regionSimulation.summary}. Pressure +${pressureGain}.`;
+    let message =
+      language === "bg"
+        ? `${localizedScenario.title}: ${option.title}. ${regionSimulation.summary}. Натиск +${pressureGain}.`
+        : `${localizedScenario.title}: ${option.title}. ${regionSimulation.summary}. Pressure +${pressureGain}.`;
 
     const collapsedStats = STAT_META.filter((entry) => stats[entry.key] === 0);
     if (collapsedStats.length > 0) {
@@ -735,20 +825,42 @@ export function MandateZeroMvp() {
         }
         coupRisk = clamp(coupRisk + 20);
         message =
-          "Emergency mode triggered. Institutions held for now, but one more collapse ends the run.";
+          language === "bg"
+            ? "Активиран е авариен режим. Институциите устояха засега, но още един срив ще прекрати симулацията."
+            : "Emergency mode triggered. Institutions held for now, but one more collapse ends the run.";
       } else {
         phase = "lost";
-        message = `Regime collapse: ${collapsedStats.map((entry) => entry.label).join(", ")} failed again.`;
+        message =
+          language === "bg"
+            ? `Колапс на режима: ${collapsedStats
+                .map((entry) => {
+                  const bgStatLabels: Record<StatKey, string> = {
+                    stability: "Стабилност",
+                    treasury: "Хазна",
+                    influence: "Влияние",
+                    security: "Сигурност",
+                    trust: "Обществено доверие",
+                  };
+                  return bgStatLabels[entry.key];
+                })
+                .join(", ")} отново се сринаха.`
+            : `Regime collapse: ${collapsedStats.map((entry) => entry.label).join(", ")} failed again.`;
       }
     }
 
     if (phase === "playing" && coupRisk >= 100) {
       phase = "lost";
-      message = "Coup risk reached critical threshold. Command authority collapsed.";
+      message =
+        language === "bg"
+          ? "Рискът от преврат достигна критичен праг. Командната власт се срина."
+          : "Coup risk reached critical threshold. Command authority collapsed.";
     }
     if (phase === "playing" && pressure >= 100) {
       phase = "lost";
-      message = "Pressure reached systemic overload. Cascading crises ended the mandate.";
+      message =
+        language === "bg"
+          ? "Натискът достигна системно претоварване. Каскадни кризи прекратиха мандата."
+          : "Pressure reached systemic overload. Cascading crises ended the mandate.";
     }
 
     const nextTurn = game.turn + 1;
@@ -766,10 +878,16 @@ export function MandateZeroMvp() {
           pressure < 85
         ) {
           phase = "won";
-          message = "Mandate survived. You contained crises without full breakdown.";
+          message =
+            language === "bg"
+              ? "Мандатът оцеля. Овладяхте кризите без пълен срив."
+              : "Mandate survived. You contained crises without full breakdown.";
         } else {
           phase = "lost";
-          message = "Term ended in systemic fragility. Earlier compromises finally broke the state.";
+          message =
+            language === "bg"
+              ? "Мандатът завърши в системна крехкост. Ранните компромиси окончателно пречупиха държавата."
+              : "Term ended in systemic fragility. Earlier compromises finally broke the state.";
         }
       } else {
         const nextScenario = pickScenarioWithChains(
@@ -788,7 +906,10 @@ export function MandateZeroMvp() {
     }
 
     if (chainRuleId) {
-      message = `${message} Follow-up chain triggered (${chainRuleId}).`;
+      message =
+        language === "bg"
+          ? `${message} Задействана е последваща верига (${chainRuleId}).`
+          : `${message} Follow-up chain triggered (${chainRuleId}).`;
     }
 
     const cooldowns = reduceCooldowns(game.cooldowns);
@@ -840,7 +961,7 @@ export function MandateZeroMvp() {
     const queueLine =
       queueLogs.length > 0 ? ` | ${queueLogs.slice(0, 2).join(" | ")}` : "";
     const chainLine = chainRuleId ? ` | chain ${chainRuleId}` : "";
-    const logLine = `${scenario.title} -> ${option.title}${optionSummary ? ` (${optionSummary})` : ""}${queueLine}${chainLine}`;
+    const logLine = `${localizedScenario.title} -> ${option.title}${optionSummary ? ` (${optionSummary})` : ""}${queueLine}${chainLine}`;
     setHistory((prev) => [logLine, ...prev].slice(0, 18));
 
     appendCausalityEntry({
@@ -849,7 +970,7 @@ export function MandateZeroMvp() {
       actionId: option.id,
       actionLabel: option.title,
       crisisId: scenario.id,
-      crisisLabel: scenario.title,
+      crisisLabel: localizedScenario.title,
       immediateDeltas: rolledOptionStats.effects,
       delayedEnqueued:
         queuedDelayed.queued.length > 0
@@ -869,7 +990,7 @@ export function MandateZeroMvp() {
         seed.value.toLowerCase() === seedValue.toLowerCase(),
     );
     if (exists) {
-      setSeedMessage("Seed already exists.");
+      setSeedMessage(language === "bg" ? "Сийдът вече съществува." : "Seed already exists.");
       return;
     }
     const nextSeed: DemoSeed = {
@@ -881,12 +1002,12 @@ export function MandateZeroMvp() {
     setCustomSeeds((prev) => [nextSeed, ...prev].slice(0, 16));
     setNewSeedName("");
     setNewSeedValue("");
-    setSeedMessage(`Saved '${seedName}'.`);
+    setSeedMessage(language === "bg" ? `Запазен '${seedName}'.` : `Saved '${seedName}'.`);
   };
 
   const removeCustomSeed = (seedId: string) => {
     setCustomSeeds((prev) => prev.filter((seed) => seed.id !== seedId));
-    setSeedMessage("Custom seed removed.");
+    setSeedMessage(language === "bg" ? "Премахнат персонален сийд." : "Custom seed removed.");
   };
 
   const clearLocalData = () => {
@@ -894,15 +1015,39 @@ export function MandateZeroMvp() {
     window.localStorage.removeItem(CUSTOM_SEEDS_STORAGE_KEY);
     setCustomSeeds([]);
     startRunWithSeed(DEFAULT_SEED);
-    setSeedMessage("Cleared local run and custom seeds.");
+    setSeedMessage(
+      language === "bg"
+        ? "Изчистени са локалната симулация и персоналните сийдове."
+        : "Cleared local run and custom seeds.",
+    );
   };
 
   const warnings = [
-    game.stats.stability < 30 ? "Institutional stability critical" : null,
-    game.stats.trust < 30 ? "Public trust collapse risk" : null,
-    game.resources.intel < 4 ? "Intel is low: forecasts are noisy" : null,
-    game.coupRisk >= 70 ? "Coup risk is escalating rapidly" : null,
-    game.pressure >= 70 ? "Pressure curve is in red zone" : null,
+    game.stats.stability < 30
+      ? language === "bg"
+        ? "Критична институционална стабилност"
+        : "Institutional stability critical"
+      : null,
+    game.stats.trust < 30
+      ? language === "bg"
+        ? "Риск от срив на общественото доверие"
+        : "Public trust collapse risk"
+      : null,
+    game.resources.intel < 4
+      ? language === "bg"
+        ? "Ниско разузнаване: прогнозите са шумни"
+        : "Intel is low: forecasts are noisy"
+      : null,
+    game.coupRisk >= 70
+      ? language === "bg"
+        ? "Рискът от преврат ескалира бързо"
+        : "Coup risk is escalating rapidly"
+      : null,
+    game.pressure >= 70
+      ? language === "bg"
+        ? "Кривата на натиск е в червената зона"
+        : "Pressure curve is in red zone"
+      : null,
   ].filter((warning): warning is string => Boolean(warning));
 
   const selectCausalityEntry = (entry: CausalityEntry) => {
@@ -913,11 +1058,21 @@ export function MandateZeroMvp() {
 
   return (
     <div className="relative">
-      {showOnboarding ? <OnboardingOverlay onDismiss={() => setOnboardingDismissed(true)} /> : null}
+      {showOnboarding ? (
+        <OnboardingOverlay language={language} onDismiss={() => setOnboardingDismissed(true)} />
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.5fr_1fr]">
         <div className="order-2 space-y-6 lg:order-1">
-        <PoliciesCard game={game} canPlay={canPlay} onEnactPolicy={enactPolicy} />
+        <PoliciesCard
+          game={game}
+          canPlay={canPlay}
+          language={language}
+          policies={localizedPolicies}
+          onEnactPolicy={enactPolicy}
+        />
         <StrategicActionsCard
+          language={language}
+          actions={localizedStrategicActions}
           getActionDisabledReason={getActionDisabledReason}
           getActionPointCost={getAdjustedActionCost}
           getActionOutcomeEstimate={(action) => estimateActionOutcome(game, action, game.scenarioId)}
@@ -927,6 +1082,7 @@ export function MandateZeroMvp() {
         <SimulationLogCard
           entries={causalityHistory}
           selectedEntryId={selectedCausalityId}
+          language={language}
           onSelectEntry={selectCausalityEntry}
         />
         </div>
@@ -936,12 +1092,13 @@ export function MandateZeroMvp() {
             <RunDebriefCard
               game={game}
               entries={causalityHistory}
+              language={language}
               onRestart={() => startRunWithSeed(game.seedText)}
             />
           ) : null}
           <MainStageCard
             game={game}
-            scenario={scenario}
+            scenario={localizedScenario}
             intelProfile={intelProfile}
             escalationClock={escalationClock}
             hotRegions={hotRegions}
@@ -950,6 +1107,8 @@ export function MandateZeroMvp() {
             optionOutcomeEstimates={optionOutcomeEstimates}
             canPlay={canPlay}
             showDebugNumbers={showDebugNumbers}
+            language={language}
+            doctrines={localizedDoctrines}
             onChooseDoctrine={chooseDoctrine}
             onResolveCrisisOption={resolveCrisisOption}
           />
@@ -957,6 +1116,7 @@ export function MandateZeroMvp() {
 
         <div className="order-3 space-y-6">
           <DemoSeedsCard
+            language={language}
             seedInput={seedInput}
             onSeedInputChange={setSeedInput}
             onStartRunWithSeed={startRunWithSeed}
@@ -967,7 +1127,7 @@ export function MandateZeroMvp() {
             onNewSeedValueChange={setNewSeedValue}
             onAddCustomSeed={addCustomSeed}
             seedMessage={seedMessage}
-            allSeeds={allSeeds}
+            allSeeds={displaySeeds}
             onRemoveCustomSeed={removeCustomSeed}
           />
           <SystemStateCard
@@ -975,10 +1135,12 @@ export function MandateZeroMvp() {
             warnings={warnings}
             highlightedSystems={highlightedSystems}
             showDebugNumbers={showDebugNumbers}
+            language={language}
             onToggleDebugNumbers={() => setShowDebugNumbers((prev) => !prev)}
           />
           <ActorsRegionsCard
             game={game}
+            language={language}
             highlightedRegions={highlightedRegions}
             highlightedActors={highlightedActors}
           />

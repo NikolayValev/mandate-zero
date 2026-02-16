@@ -11,6 +11,14 @@ import {
 } from "@/components/ui/card";
 import { RESOURCE_META, STAT_META } from "./data";
 import { computeTrend, toTier } from "./engine";
+import {
+  getDirectionLabel,
+  getMomentumLabel,
+  getResourceLabel,
+  getStatLabel,
+  getTierLabel,
+  type AppLanguage,
+} from "./i18n";
 import type { CoreSystemKey, GameState } from "./types";
 
 interface SystemStateCardProps {
@@ -18,17 +26,8 @@ interface SystemStateCardProps {
   warnings: string[];
   highlightedSystems: CoreSystemKey[];
   showDebugNumbers: boolean;
+  language: AppLanguage;
   onToggleDebugNumbers: () => void;
-}
-
-function trendArrow(direction: "up" | "down" | "flat") {
-  if (direction === "up") {
-    return "UP";
-  }
-  if (direction === "down") {
-    return "DOWN";
-  }
-  return "FLAT";
 }
 
 export function SystemStateCard({
@@ -36,6 +35,7 @@ export function SystemStateCard({
   warnings,
   highlightedSystems,
   showDebugNumbers,
+  language,
   onToggleDebugNumbers,
 }: SystemStateCardProps) {
   const isDev = process.env.NODE_ENV !== "production";
@@ -44,15 +44,23 @@ export function SystemStateCard({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <CardTitle>System State</CardTitle>
+          <CardTitle>{language === "bg" ? "Състояние на системата" : "System State"}</CardTitle>
           {isDev ? (
             <Button type="button" variant="outline" size="sm" className="min-h-10 px-3 text-xs" onClick={onToggleDebugNumbers}>
-              {showDebugNumbers ? "Hide Numbers" : "Show Numbers"}
+              {showDebugNumbers
+                ? language === "bg"
+                  ? "Скрий числа"
+                  : "Hide Numbers"
+                : language === "bg"
+                  ? "Покажи числа"
+                  : "Show Numbers"}
             </Button>
           ) : null}
         </div>
         <CardDescription className="hidden sm:block">
-          Core systems are qualitative. Arrows show direction and repeated movement shows momentum.
+          {language === "bg"
+            ? "Ключовите системи са качествени. Стрелките показват посока, а повторението - инерция."
+            : "Core systems are qualitative. Arrows show direction and repeated movement shows momentum."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -72,12 +80,12 @@ export function SystemStateCard({
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm">{stat.label}</div>
+                <div className="text-sm">{getStatLabel(stat.key, language)}</div>
                 <Badge
                   data-testid={`system-tier-${stat.key}`}
                   variant={tier.severity >= 3 ? "destructive" : tier.severity >= 2 ? "secondary" : "outline"}
                 >
-                  {tier.label} {trendArrow(trend.direction)}
+                  {getTierLabel(tier.label, language)} {getDirectionLabel(trend.direction, language)}
                 </Badge>
               </div>
               <div className="h-3 rounded-full bg-muted">
@@ -87,8 +95,8 @@ export function SystemStateCard({
                 />
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Trend {trendArrow(trend.direction)}
-                {trend.momentum ? `, ${trend.momentum}` : ""}
+                {language === "bg" ? "Тренд" : "Trend"} {getDirectionLabel(trend.direction, language)}
+                {trend.momentum ? `, ${getMomentumLabel(trend.momentum, language)}` : ""}
                 {showDebugNumbers ? ` | ${value}` : ""}
               </p>
             </div>
@@ -96,13 +104,15 @@ export function SystemStateCard({
         })}
 
         <div className="pt-2">
-          <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Resources</p>
+          <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+            {language === "bg" ? "Ресурси" : "Resources"}
+          </p>
           <div className="flex flex-wrap gap-2">
             {RESOURCE_META.map((resource) => {
               const delta = game.lastResourceDelta[resource.key] ?? 0;
               return (
                 <Badge key={resource.key} variant="outline">
-                  {resource.label}: {game.resources[resource.key]}
+                  {getResourceLabel(resource.key, language)}: {game.resources[resource.key]}
                   {delta !== 0 ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}
                 </Badge>
               );

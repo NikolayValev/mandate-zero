@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { ACTOR_META, REGION_META } from "./data";
 import { getScenario, regionClass } from "./engine";
+import { getActorLabel, getRegionLabel, type AppLanguage } from "./i18n";
 import { RegionTheaterMap } from "./region-theater-map";
 import type { ActorKey, GameState, RegionKey } from "./types";
 
@@ -30,22 +31,28 @@ interface ActorsRegionsCardProps {
   game: GameState;
   highlightedRegions: RegionKey[];
   highlightedActors: ActorKey[];
+  language: AppLanguage;
 }
 
-function stressBand(stress: number) {
+function stressBand(stress: number, language: AppLanguage) {
   if (stress >= 85) {
-    return "Critical";
+    return language === "bg" ? "Критичен" : "Critical";
   }
   if (stress >= 70) {
-    return "High";
+    return language === "bg" ? "Висок" : "High";
   }
   if (stress >= 45) {
-    return "Elevated";
+    return language === "bg" ? "Повишен" : "Elevated";
   }
-  return "Contained";
+  return language === "bg" ? "Овладян" : "Contained";
 }
 
-export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors }: ActorsRegionsCardProps) {
+export function ActorsRegionsCard({
+  game,
+  highlightedRegions,
+  highlightedActors,
+  language,
+}: ActorsRegionsCardProps) {
   const [showThreeLayer, setShowThreeLayer] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<RegionKey>("capital");
   const activeScenarioTargets = useMemo(
@@ -70,14 +77,17 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Actors and Regions</CardTitle>
+        <CardTitle>{language === "bg" ? "Актьори и региони" : "Actors and Regions"}</CardTitle>
         <CardDescription className="hidden sm:block">
-          Actor conditions shape region severity. Spatial stress now renders in a 3D theater.
+          {language === "bg"
+            ? "Състоянието на актьорите оформя регионалната тежест. Пространственият натиск се визуализира в 3D."
+            : "Actor conditions shape region severity. Spatial stress now renders in a 3D theater."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <RegionTheaterMap
           game={game}
+          language={language}
           highlightedRegions={highlightedRegions}
           selectedRegion={selectedRegion}
           onSelectRegion={setSelectedRegion}
@@ -86,7 +96,9 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
         <div className="rounded-md border p-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
-              Optional 3D state layer. Tap a block to select region in the same panel.
+              {language === "bg"
+                ? "Допълнителен 3D слой. Натисни блок, за да избереш регион в същия панел."
+                : "Optional 3D state layer. Tap a block to select region in the same panel."}
             </p>
             <Button
               type="button"
@@ -95,13 +107,20 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
               className="min-h-11 px-4"
               onClick={() => setShowThreeLayer((prev) => !prev)}
             >
-              {showThreeLayer ? "Hide 3D Layer" : "Show 3D Layer"}
+              {showThreeLayer
+                ? language === "bg"
+                  ? "Скрий 3D слой"
+                  : "Hide 3D Layer"
+                : language === "bg"
+                  ? "Покажи 3D слой"
+                  : "Show 3D Layer"}
             </Button>
           </div>
           {showThreeLayer ? (
             <div className="mt-2">
               <StateMeshScene
                 game={game}
+                language={language}
                 selectedRegion={selectedRegion}
                 highlightedRegions={highlightedRegions}
                 activeCrisisRegions={activeScenarioTargets}
@@ -125,11 +144,13 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
                 }`}
               >
                 <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="font-medium">{actor.label}</span>
+                  <span className="font-medium">{getActorLabel(actor.key, language)}</span>
                 </div>
                 <div className="space-y-2">
                   <div>
-                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Loyalty</p>
+                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {language === "bg" ? "Лоялност" : "Loyalty"}
+                    </p>
                     <div className="h-4 rounded-full bg-muted/70">
                       <div
                         className="flex h-4 items-center justify-end rounded-full bg-emerald-500 px-2 text-[10px] font-semibold text-emerald-50 transition-all"
@@ -140,7 +161,9 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
                     </div>
                   </div>
                   <div>
-                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Pressure</p>
+                    <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {language === "bg" ? "Натиск" : "Pressure"}
+                    </p>
                     <div className="h-4 rounded-full bg-muted/70">
                       <div
                         className="flex h-4 items-center justify-end rounded-full bg-rose-500 px-2 text-[10px] font-semibold text-rose-50 transition-all"
@@ -169,13 +192,13 @@ export function ActorsRegionsCard({ game, highlightedRegions, highlightedActors 
                 } ${selectedRegion === region.key ? "ring-2 ring-cyan-500/70" : ""}`}
               >
                 <div className="mb-1 flex items-center justify-between">
-                  <span>{region.label}</span>
+                  <span>{getRegionLabel(region.key, language)}</span>
                   <Badge variant="outline" className="text-[10px]">
                     {stress}
                   </Badge>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  Stress band: {stressBand(stress)}
+                  {language === "bg" ? "Ниво на натиск:" : "Stress band:"} {stressBand(stress, language)}
                 </div>
               </div>
             );

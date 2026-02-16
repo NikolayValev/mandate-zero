@@ -3,18 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { clamp } from "./engine";
+import { getActorLabel, getRegionLabel, type AppLanguage } from "./i18n";
 import type { ActorKey, GameState, RegionKey } from "./types";
 
 const REGION_LAYOUT: Record<
   RegionKey,
-  { label: string; left: string; top: string; actorFocus: ActorKey }
+  { left: string; top: string; actorFocus: ActorKey }
 > = {
-  north: { label: "North", left: "32%", top: "24%", actorFocus: "public" },
-  south: { label: "South", left: "40%", top: "76%", actorFocus: "public" },
-  capital: { label: "Capital", left: "54%", top: "44%", actorFocus: "media" },
-  industry: { label: "Industry", left: "72%", top: "62%", actorFocus: "banks" },
-  border: { label: "Border", left: "81%", top: "32%", actorFocus: "military" },
-  coast: { label: "Coast", left: "18%", top: "56%", actorFocus: "banks" },
+  north: { left: "32%", top: "24%", actorFocus: "public" },
+  south: { left: "40%", top: "76%", actorFocus: "public" },
+  capital: { left: "54%", top: "44%", actorFocus: "media" },
+  industry: { left: "72%", top: "62%", actorFocus: "banks" },
+  border: { left: "81%", top: "32%", actorFocus: "military" },
+  coast: { left: "18%", top: "56%", actorFocus: "banks" },
 };
 
 function severityTone(value: number) {
@@ -30,17 +31,17 @@ function severityTone(value: number) {
   return "from-emerald-500/90 to-emerald-300/70 border-emerald-100/80";
 }
 
-function severityLabel(value: number) {
+function severityLabel(value: number, language: AppLanguage) {
   if (value >= 85) {
-    return "Critical";
+    return language === "bg" ? "Критично" : "Critical";
   }
   if (value >= 70) {
-    return "High";
+    return language === "bg" ? "Високо" : "High";
   }
   if (value >= 45) {
-    return "Elevated";
+    return language === "bg" ? "Повишено" : "Elevated";
   }
-  return "Contained";
+  return language === "bg" ? "Овладяно" : "Contained";
 }
 
 function crisisAltitude(stress: number, pressure: number, loyalty: number) {
@@ -59,6 +60,7 @@ export const REGION_ACTOR_FOCUS: Record<RegionKey, ActorKey> = {
 
 interface RegionTheaterMapProps {
   game: GameState;
+  language: AppLanguage;
   highlightedRegions?: RegionKey[];
   selectedRegion?: RegionKey;
   onSelectRegion?: (region: RegionKey) => void;
@@ -66,6 +68,7 @@ interface RegionTheaterMapProps {
 
 export function RegionTheaterMap({
   game,
+  language,
   highlightedRegions = [],
   selectedRegion,
   onSelectRegion,
@@ -176,14 +179,18 @@ export function RegionTheaterMap({
                     isHighlighted ? "ring-2 ring-cyan-200" : ""
                   }`}
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide">{layout.label}</p>
-                  <p className="text-xs">Stress {stress}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide">
+                    {getRegionLabel(regionKey, language)}
+                  </p>
+                  <p className="text-xs">{language === "bg" ? "Натиск" : "Stress"} {stress}</p>
                   <p className="text-[10px] text-white/90">
-                    Pressure {pressure}% | Loyalty {loyalty}%
+                    {language === "bg" ? "Натиск" : "Pressure"} {pressure}% |{" "}
+                    {language === "bg" ? "Лоялност" : "Loyalty"} {loyalty}%
                   </p>
                   {stressDelta !== 0 ? (
                     <p className="mt-1 text-[10px] text-white/90">
-                      Turn delta {stressDelta > 0 ? `+${stressDelta}` : stressDelta}
+                      {language === "bg" ? "Промяна за хода" : "Turn delta"}{" "}
+                      {stressDelta > 0 ? `+${stressDelta}` : stressDelta}
                     </p>
                   ) : null}
                 </div>
@@ -194,40 +201,47 @@ export function RegionTheaterMap({
 
         <div className="absolute left-3 top-3 flex items-center gap-2">
           <Badge className="border-white/20 bg-black/30 text-white" variant="outline">
-            3D Crisis Theater
+            {language === "bg" ? "3D кризисен театър" : "3D Crisis Theater"}
           </Badge>
           <Badge className="hidden border-white/20 bg-black/30 text-white sm:inline-flex" variant="outline">
-            Height = Destabilization
+            {language === "bg" ? "Височина = Дестабилизация" : "Height = Destabilization"}
           </Badge>
         </div>
 
         <p className="absolute bottom-2 left-3 text-[10px] text-white/70">
-          Click a region tile to inspect local dynamics.
+          {language === "bg"
+            ? "Избери регионална плочка, за да прегледаш местната динамика."
+            : "Click a region tile to inspect local dynamics."}
         </p>
       </div>
 
       <div className="rounded-lg border bg-slate-900/95 p-3 text-white">
         <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide">Region Focus</p>
+          <p className="text-xs font-semibold uppercase tracking-wide">
+            {language === "bg" ? "Фокус върху регион" : "Region Focus"}
+          </p>
           <Badge variant="outline" className="border-white/30 text-white">
-            {severityLabel(focusedStress)}
+            {severityLabel(focusedStress, language)}
           </Badge>
         </div>
 
-        <p className="text-sm font-medium">{REGION_LAYOUT[activeRegion].label}</p>
+        <p className="text-sm font-medium">{getRegionLabel(activeRegion, language)}</p>
         <p className="text-[11px] text-white/80">
-          Stress {focusedStress}
+          {language === "bg" ? "Натиск" : "Stress"} {focusedStress}
           {focusedStressDelta !== 0 ? ` (${focusedStressDelta > 0 ? "+" : ""}${focusedStressDelta})` : ""}
           {" | "}
-          Destabilization Height {focusedAltitude}
+          {language === "bg" ? "Височина на дестабилизация" : "Destabilization Height"} {focusedAltitude}
         </p>
         <p className="mt-1 text-[11px] text-white/80">
-          Actor lens: {focusedActorKey} | {focusedActor.pressure}% / {focusedActor.loyalty}%
+          {language === "bg" ? "Леща на актьора" : "Actor lens"}:{" "}
+          {getActorLabel(focusedActorKey, language)} | {focusedActor.pressure}% / {focusedActor.loyalty}%
         </p>
 
         <div className="mt-2 space-y-2">
           <div>
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-white/70">Pressure</p>
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-white/70">
+              {language === "bg" ? "Натиск" : "Pressure"}
+            </p>
             <div className="h-4 rounded-full bg-white/20">
               <div
                 className="flex h-4 items-center justify-end rounded-full bg-rose-400 px-2 text-[10px] font-semibold text-rose-950 transition-all"
@@ -238,7 +252,9 @@ export function RegionTheaterMap({
             </div>
           </div>
           <div>
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-white/70">Loyalty</p>
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-white/70">
+              {language === "bg" ? "Лоялност" : "Loyalty"}
+            </p>
             <div className="h-4 rounded-full bg-white/20">
               <div
                 className="flex h-4 items-center justify-end rounded-full bg-emerald-400 px-2 text-[10px] font-semibold text-emerald-950 transition-all"

@@ -3,17 +3,25 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { REGION_META, STAT_META } from "./data";
+import { STAT_META } from "./data";
 import { summarizeDelta, toPressureState, toTier } from "./engine";
+import {
+  getPressureLabel,
+  getRegionLabel,
+  getStatLabel,
+  getTierLabel,
+  type AppLanguage,
+} from "./i18n";
 import type { CausalityEntry, GameState, RegionKey } from "./types";
 
 interface RunDebriefCardProps {
   game: GameState;
   entries: CausalityEntry[];
+  language: AppLanguage;
   onRestart: () => void;
 }
 
-function topRegions(entries: CausalityEntry[]) {
+function topRegions(entries: CausalityEntry[]): RegionKey[] {
   const counts = new Map<RegionKey, number>();
   for (const entry of entries) {
     for (const region of entry.regionImpacts) {
@@ -23,10 +31,10 @@ function topRegions(entries: CausalityEntry[]) {
   return [...counts.entries()]
     .sort((left, right) => right[1] - left[1])
     .slice(0, 3)
-    .map(([region]) => REGION_META.find((meta) => meta.key === region)?.label ?? region);
+    .map(([region]) => region);
 }
 
-export function RunDebriefCard({ game, entries, onRestart }: RunDebriefCardProps) {
+export function RunDebriefCard({ game, entries, language, onRestart }: RunDebriefCardProps) {
   const pressureState = toPressureState(game.pressure);
   const keyChoices = entries
     .filter((entry) => !entry.actionLabel.startsWith("Doctrine:"))
@@ -34,37 +42,81 @@ export function RunDebriefCard({ game, entries, onRestart }: RunDebriefCardProps
     .map((entry) => entry.actionLabel);
   const triggered = [...new Set(entries.flatMap((entry) => entry.thresholdsTriggered))].slice(0, 3);
   const delayed = [...new Set(entries.flatMap((entry) => entry.delayedEnqueued))].slice(0, 3);
-  const hotspots = topRegions(entries);
+  const hotspots = topRegions(entries).map((region) => getRegionLabel(region, language));
+  const localizedStatMeta = STAT_META.map((stat) => ({
+    ...stat,
+    label: getStatLabel(stat.key, language),
+  }));
 
   return (
     <Card data-testid="run-debrief-card" className="border-primary/50 bg-primary/5">
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle>{game.phase === "won" ? "Mandate Debrief: Survived" : "Mandate Debrief: Collapsed"}</CardTitle>
+          <CardTitle>
+            {game.phase === "won"
+              ? language === "bg"
+                ? "Обобщение: Оцеляване"
+                : "Mandate Debrief: Survived"
+              : language === "bg"
+                ? "Обобщение: Колапс"
+                : "Mandate Debrief: Collapsed"}
+          </CardTitle>
           <Badge variant={game.phase === "won" ? "default" : "destructive"}>
-            {game.phase === "won" ? "Victory" : "Defeat"}
+            {game.phase === "won"
+              ? language === "bg"
+                ? "Победа"
+                : "Victory"
+              : language === "bg"
+                ? "Поражение"
+                : "Defeat"}
           </Badge>
         </div>
         <CardDescription>
-          Turn {Math.min(game.turn - 1, game.maxTurns)} summary for seed <span className="font-mono">{game.seedText}</span>
+          {language === "bg" ? "Обобщение за ход" : "Turn"} {Math.min(game.turn - 1, game.maxTurns)}{" "}
+          {language === "bg" ? "за сийд" : "summary for seed"}{" "}
+          <span className="font-mono">{game.seedText}</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <p>{game.message}</p>
         <p>
-          Final pressure state: <strong>{pressureState.label}</strong>
+          {language === "bg" ? "Крайно състояние на натиска" : "Final pressure state"}:{" "}
+          <strong>{getPressureLabel(pressureState.label, language)}</strong>
         </p>
         <p>
-          Final systems:{" "}
-          {STAT_META.map((stat) => `${stat.label} ${toTier(game.stats[stat.key]).label}`).join(" | ")}
+          {language === "bg" ? "Крайни системи" : "Final systems"}:{" "}
+          {STAT_META.map(
+            (stat) =>
+              `${getStatLabel(stat.key, language)} ${getTierLabel(toTier(game.stats[stat.key]).label, language)}`,
+          ).join(" | ")}
         </p>
-        <p>Recent system shifts: {summarizeDelta(game.lastStatDelta, STAT_META) || "No immediate shifts recorded."}</p>
-        <p>Key choices: {keyChoices.length > 0 ? keyChoices.join(" -> ") : "No major actions recorded."}</p>
-        <p>Triggered outcomes: {triggered.length > 0 ? triggered.join(" | ") : "None"}</p>
-        <p>Delayed effects: {delayed.length > 0 ? delayed.join(" | ") : "None"}</p>
-        <p>Most affected regions: {hotspots.length > 0 ? hotspots.join(", ") : "None"}</p>
+        <p>
+          {language === "bg" ? "Последни системни промени" : "Recent system shifts"}:{" "}
+          {summarizeDelta(game.lastStatDelta, localizedStatMeta) ||
+            (language === "bg" ? "Няма незабавни промени." : "No immediate shifts recorded.")}
+        </p>
+        <p>
+          {language === "bg" ? "Ключови избори" : "Key choices"}:{" "}
+          {keyChoices.length > 0
+            ? keyChoices.join(" -> ")
+            : language === "bg"
+              ? "Няма записани ключови действия."
+              : "No major actions recorded."}
+        </p>
+        <p>
+          {language === "bg" ? "Задействани резултати" : "Triggered outcomes"}:{" "}
+          {triggered.length > 0 ? triggered.join(" | ") : language === "bg" ? "Няма" : "None"}
+        </p>
+        <p>
+          {language === "bg" ? "Отложени ефекти" : "Delayed effects"}:{" "}
+          {delayed.length > 0 ? delayed.join(" | ") : language === "bg" ? "Няма" : "None"}
+        </p>
+        <p>
+          {language === "bg" ? "Най-засегнати региони" : "Most affected regions"}:{" "}
+          {hotspots.length > 0 ? hotspots.join(", ") : language === "bg" ? "Няма" : "None"}
+        </p>
         <Button type="button" className="min-h-11 px-5" data-testid="debrief-restart" onClick={onRestart}>
-          Start New Run (Same Seed)
+          {language === "bg" ? "Нова симулация (същия сийд)" : "Start New Run (Same Seed)"}
         </Button>
       </CardContent>
     </Card>

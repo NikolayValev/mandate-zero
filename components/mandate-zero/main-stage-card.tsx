@@ -8,10 +8,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { DOCTRINES, STAT_META } from "./data";
 import { computeTrend, riskVariant, toPressureState } from "./engine";
+import {
+  getConfidenceLabel,
+  getPressureLabel,
+  getRiskLabel,
+  getStatLabel,
+  getTurnStageLabel,
+  type AppLanguage,
+} from "./i18n";
 import { buildScenarioBrief, buildSituationExplanation } from "./situation-copy";
 import type {
+  Doctrine,
   DoctrineId,
   GameState,
   IntelProfile,
@@ -32,6 +40,8 @@ interface MainStageCardProps {
   optionOutcomeEstimates: Record<string, OutcomeEstimate[]>;
   canPlay: boolean;
   showDebugNumbers: boolean;
+  language: AppLanguage;
+  doctrines: Doctrine[];
   onChooseDoctrine: (doctrineId: DoctrineId) => void;
   onResolveCrisisOption: (option: ScenarioOption) => void;
 }
@@ -46,11 +56,14 @@ function phaseVariant(phase: GameState["phase"]): "default" | "destructive" | "s
   return "secondary";
 }
 
-function phaseLabel(phase: GameState["phase"]) {
+function phaseLabel(phase: GameState["phase"], language: AppLanguage) {
   if (phase === "playing") {
-    return "In Session";
+    return language === "bg" ? "В ход" : "In Session";
   }
-  return phase === "won" ? "Victory" : "Defeat";
+  if (phase === "won") {
+    return language === "bg" ? "Победа" : "Victory";
+  }
+  return language === "bg" ? "Поражение" : "Defeat";
 }
 
 export function MainStageCard({
@@ -64,17 +77,19 @@ export function MainStageCard({
   optionOutcomeEstimates,
   canPlay,
   showDebugNumbers,
+  language,
+  doctrines,
   onChooseDoctrine,
   onResolveCrisisOption,
 }: MainStageCardProps) {
   const pressureState = toPressureState(game.pressure);
   const pressureTrend = computeTrend(game.systemHistory.map((snapshot) => snapshot.pressure));
   const pressureTone =
-    pressureState.label === "Breaking"
+    getPressureLabel(pressureState.label, "en") === "Breaking"
       ? "bg-red-500"
-      : pressureState.label === "Hot"
+      : getPressureLabel(pressureState.label, "en") === "Hot"
         ? "bg-orange-500"
-        : pressureState.label === "Tense"
+        : getPressureLabel(pressureState.label, "en") === "Tense"
           ? "bg-yellow-500"
           : "bg-emerald-500";
   const pressureArrow =
@@ -89,10 +104,12 @@ export function MainStageCard({
       <CardHeader>
         <div className="rounded-md border p-2">
           <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-muted-foreground">
-            <span>Turn {Math.min(game.turn, game.maxTurns)}</span>
-            <span>Stage {game.turnStage}</span>
+            <span>{language === "bg" ? "Ход" : "Turn"} {Math.min(game.turn, game.maxTurns)}</span>
+            <span>
+              {language === "bg" ? "Етап" : "Stage"} {getTurnStageLabel(game.turnStage, language)}
+            </span>
             <span data-testid="pressure-label">
-              Pressure {pressureState.label} {pressureArrow}
+              {language === "bg" ? "Натиск" : "Pressure"} {getPressureLabel(pressureState.label, language)} {pressureArrow}
               {showDebugNumbers ? ` (${game.pressure})` : ""}
             </span>
           </div>
@@ -100,31 +117,36 @@ export function MainStageCard({
             <div className={`h-2 rounded-full transition-all ${pressureTone}`} style={{ width: `${game.pressure}%` }} />
           </div>
           {pressureTrend.momentum ? (
-            <p className="mt-1 text-[10px] text-muted-foreground">Pressure {pressureTrend.momentum}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {language === "bg" ? "Натиск" : "Pressure"}{" "}
+              {language === "bg" ? "ускорява се" : pressureTrend.momentum}
+            </p>
           ) : null}
           <div className="mt-2 grid grid-cols-4 gap-2 text-[10px] text-muted-foreground">
-            <span>Crisis</span>
-            <span>Decision</span>
-            <span>Resolution</span>
-            <span>Fallout</span>
+            <span>{language === "bg" ? "Криза" : "Crisis"}</span>
+            <span>{language === "bg" ? "Решение" : "Decision"}</span>
+            <span>{language === "bg" ? "Развръзка" : "Resolution"}</span>
+            <span>{language === "bg" ? "Последствия" : "Fallout"}</span>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <CardTitle>Mandate Zero Simulation</CardTitle>
+            <CardTitle>{language === "bg" ? "Симулация Mandate Zero" : "Mandate Zero Simulation"}</CardTitle>
             <CardDescription>
-              Turn {Math.min(game.turn, game.maxTurns)} of {game.maxTurns} | AP {" "}
+              {language === "bg" ? "Ход" : "Turn"} {Math.min(game.turn, game.maxTurns)}{" "}
+              {language === "bg" ? "от" : "of"} {game.maxTurns} | AP{" "}
               {game.actionPoints}/{game.maxActionPoints}
             </CardDescription>
             <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
-              Seed: {game.seedText} | Confidence: {intelProfile.confidence}
+              {language === "bg" ? "Сийд" : "Seed"}: {game.seedText} |{" "}
+              {language === "bg" ? "Увереност" : "Confidence"}: {getConfidenceLabel(intelProfile.confidence, language)}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={phaseVariant(game.phase)}>{phaseLabel(game.phase)}</Badge>
+            <Badge variant={phaseVariant(game.phase)}>{phaseLabel(game.phase, language)}</Badge>
             <Badge variant={game.coupRisk >= 70 ? "destructive" : "outline"}>
-              Coup Risk {game.coupRisk}
+              {language === "bg" ? "Риск от преврат" : "Coup Risk"} {game.coupRisk}
             </Badge>
           </div>
         </div>
@@ -133,30 +155,36 @@ export function MainStageCard({
         <div className="rounded-lg border p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Active Crisis
+              {language === "bg" ? "Активна криза" : "Active Crisis"}
             </p>
             <div className="flex items-center gap-2">
               <Badge variant={scenario.severity >= 4 ? "destructive" : "secondary"}>
-                Severity {scenario.severity}/5
+                {language === "bg" ? "Тежест" : "Severity"} {scenario.severity}/5
               </Badge>
-              <Badge variant="outline">Escalation in {escalationClock}</Badge>
+              <Badge variant="outline">
+                {language === "bg" ? "Ескалация след" : "Escalation in"} {escalationClock}
+              </Badge>
             </div>
           </div>
           <h3 className="mt-2 text-lg font-semibold">{scenario.title}</h3>
-          <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">Situation Brief</p>
-          <p className="mt-1 text-sm text-muted-foreground">{buildScenarioBrief(scenario)}</p>
+          <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+            {language === "bg" ? "Кратка обстановка" : "Situation Brief"}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{buildScenarioBrief(scenario, language)}</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Spread preview: {hotRegions} hot regions, {criticalRegions} critical.
+            {language === "bg"
+              ? `Преглед на разпространението: ${hotRegions} горещи региона, ${criticalRegions} критични.`
+              : `Spread preview: ${hotRegions} hot regions, ${criticalRegions} critical.`}
           </p>
         </div>
 
         {!game.doctrine ? (
           <div className="space-y-3 rounded-lg border p-4">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Choose Doctrine (irreversible)
+              {language === "bg" ? "Избери доктрина (необратимо)" : "Choose Doctrine (irreversible)"}
             </p>
             <div className="grid gap-3 md:grid-cols-3">
-              {DOCTRINES.map((option) => (
+              {doctrines.map((option) => (
                 <button
                   key={option.id}
                   type="button"
@@ -164,7 +192,7 @@ export function MainStageCard({
                   className="rounded-lg border p-3 text-left transition hover:bg-accent"
                   onClick={() => onChooseDoctrine(option.id)}
                 >
-                  <p className="font-medium">{option.title}</p>
+                <p className="font-medium">{option.title}</p>
                   <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
                     {option.description}
                   </p>
@@ -187,42 +215,51 @@ export function MainStageCard({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">{option.title}</p>
                 <div className="flex gap-2">
-                <Badge variant={riskVariant(option.risk)}>Risk {option.risk}</Badge>
+                <Badge variant={riskVariant(option.risk)}>
+                    {language === "bg" ? "Риск" : "Risk"} {getRiskLabel(option.risk, language)}
+                  </Badge>
                   <Badge variant="outline" className="hidden sm:inline-flex">
-                    {intelProfile.confidence} confidence
+                    {getConfidenceLabel(intelProfile.confidence, language)}{" "}
+                    {language === "bg" ? "увереност" : "confidence"}
                   </Badge>
                 </div>
               </div>
-              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">Situation</p>
+              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+                {language === "bg" ? "Ситуация" : "Situation"}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {buildSituationExplanation(scenario, option)}
+                {buildSituationExplanation(scenario, option, language)}
               </p>
               <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
-                Projected Outcome Window
+                {language === "bg" ? "Прогнозен диапазон" : "Projected Outcome Window"}
               </p>
               <div className="mt-2 grid gap-1">
                 {(optionOutcomeEstimates[option.id] ?? []).slice(0, 4).map((estimate) => {
-                  const statLabel = STAT_META.find((entry) => entry.key === estimate.system)?.label ?? estimate.system;
+                  const statLabel = getStatLabel(estimate.system, language);
                   const minLabel = estimate.min > 0 ? `+${estimate.min}` : `${estimate.min}`;
                   const maxLabel = estimate.max > 0 ? `+${estimate.max}` : `${estimate.max}`;
                   return (
                     <p key={`${option.id}-${estimate.system}`} className="text-xs text-muted-foreground">
-                      {statLabel}: {minLabel} to {maxLabel} ({estimate.confidence})
+                      {statLabel}: {minLabel} {language === "bg" ? "до" : "to"} {maxLabel} (
+                      {getConfidenceLabel(estimate.confidence, language)})
                     </p>
                   );
                 })}
               </div>
               {(optionOutcomeEstimates[option.id] ?? []).length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">Estimated impact: neutral</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {language === "bg" ? "Прогнозен ефект: неутрален" : "Estimated impact: neutral"}
+                </p>
               ) : null}
               {option.delayed && option.delayed.length > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Possible delayed fallout: {option.delayed.map((item) => item.label).join(", ")}
+                  {language === "bg" ? "Възможни отложени последствия:" : "Possible delayed fallout:"}{" "}
+                  {option.delayed.map((item) => item.label).join(", ")}
                 </p>
               ) : null}
               {upcomingEffects.length > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Queued fallout:{" "}
+                  {language === "bg" ? "Планирани последствия:" : "Queued fallout:"}{" "}
                   {upcomingEffects
                     .slice(0, 2)
                     .map((effect) => `${effect.source} (T${effect.turnToApply})`)
@@ -230,7 +267,7 @@ export function MainStageCard({
                 </p>
               ) : null}
               <p className="mt-2 text-xs text-muted-foreground">
-                Stakeholder pulse: {option.factionReaction}
+                {language === "bg" ? "Реакция на групите:" : "Stakeholder pulse:"} {option.factionReaction}
               </p>
             </button>
           ))}
