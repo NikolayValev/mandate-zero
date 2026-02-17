@@ -30,6 +30,16 @@ interface SystemStateCardProps {
   onToggleDebugNumbers: () => void;
 }
 
+function resourceStateLabel(value: number) {
+  if (value >= 8) {
+    return "Ready";
+  }
+  if (value >= 4) {
+    return "Tight";
+  }
+  return "Low";
+}
+
 export function SystemStateCard({
   game,
   warnings,
@@ -112,8 +122,13 @@ export function SystemStateCard({
               const delta = game.lastResourceDelta[resource.key] ?? 0;
               return (
                 <Badge key={resource.key} variant="outline">
-                  {getResourceLabel(resource.key, language)}: {game.resources[resource.key]}
-                  {delta !== 0 ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}
+                  <span className="sm:hidden">
+                    {getResourceLabel(resource.key, language)}: {resourceStateLabel(game.resources[resource.key])}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {getResourceLabel(resource.key, language)}: {game.resources[resource.key]}
+                    {delta !== 0 ? ` (${delta > 0 ? "+" : ""}${delta})` : ""}
+                  </span>
                 </Badge>
               );
             })}

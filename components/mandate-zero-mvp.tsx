@@ -1062,29 +1062,35 @@ export function MandateZeroMvp({ language }: MandateZeroMvpProps) {
         <OnboardingOverlay language={language} onDismiss={() => setOnboardingDismissed(true)} />
       ) : null}
       <div className="grid gap-6 lg:grid-cols-[0.95fr_1.5fr_1fr]">
-        <div className="order-2 space-y-6 lg:order-1">
-        <PoliciesCard
-          game={game}
-          canPlay={canPlay}
-          language={language}
-          policies={localizedPolicies}
-          onEnactPolicy={enactPolicy}
-        />
-        <StrategicActionsCard
-          language={language}
-          actions={localizedStrategicActions}
-          getActionDisabledReason={getActionDisabledReason}
-          getActionPointCost={getAdjustedActionCost}
-          getActionOutcomeEstimate={(action) => estimateActionOutcome(game, action, game.scenarioId)}
-          upcomingEffects={upcomingEffects}
-          onTriggerStrategicAction={triggerStrategicAction}
-        />
-        <SimulationLogCard
-          entries={causalityHistory}
-          selectedEntryId={selectedCausalityId}
-          language={language}
-          onSelectEntry={selectCausalityEntry}
-        />
+        <div className="order-2 flex flex-col gap-6 lg:order-1">
+          <div className="order-2 lg:order-1">
+            <PoliciesCard
+              game={game}
+              canPlay={canPlay}
+              language={language}
+              policies={localizedPolicies}
+              onEnactPolicy={enactPolicy}
+            />
+          </div>
+          <div className="order-1 lg:order-2">
+            <StrategicActionsCard
+              language={language}
+              actions={localizedStrategicActions}
+              getActionDisabledReason={getActionDisabledReason}
+              getActionPointCost={getAdjustedActionCost}
+              getActionOutcomeEstimate={(action) => estimateActionOutcome(game, action, game.scenarioId)}
+              upcomingEffects={upcomingEffects}
+              onTriggerStrategicAction={triggerStrategicAction}
+            />
+          </div>
+          <div className="order-3">
+            <SimulationLogCard
+              entries={causalityHistory}
+              selectedEntryId={selectedCausalityId}
+              language={language}
+              onSelectEntry={selectCausalityEntry}
+            />
+          </div>
         </div>
 
         <div className="order-1 space-y-6 lg:order-2">
@@ -1114,36 +1120,42 @@ export function MandateZeroMvp({ language }: MandateZeroMvpProps) {
           />
         </div>
 
-        <div className="order-3 space-y-6">
-          <DemoSeedsCard
-            language={language}
-            seedInput={seedInput}
-            onSeedInputChange={setSeedInput}
-            onStartRunWithSeed={startRunWithSeed}
-            onClearLocalData={clearLocalData}
-            newSeedName={newSeedName}
-            onNewSeedNameChange={setNewSeedName}
-            newSeedValue={newSeedValue}
-            onNewSeedValueChange={setNewSeedValue}
-            onAddCustomSeed={addCustomSeed}
-            seedMessage={seedMessage}
-            allSeeds={displaySeeds}
-            onRemoveCustomSeed={removeCustomSeed}
-          />
-          <SystemStateCard
-            game={game}
-            warnings={warnings}
-            highlightedSystems={highlightedSystems}
-            showDebugNumbers={showDebugNumbers}
-            language={language}
-            onToggleDebugNumbers={() => setShowDebugNumbers((prev) => !prev)}
-          />
-          <ActorsRegionsCard
-            game={game}
-            language={language}
-            highlightedRegions={highlightedRegions}
-            highlightedActors={highlightedActors}
-          />
+        <div className="order-3 flex flex-col gap-6">
+          <div className="order-1 lg:order-2">
+            <SystemStateCard
+              game={game}
+              warnings={warnings}
+              highlightedSystems={highlightedSystems}
+              showDebugNumbers={showDebugNumbers}
+              language={language}
+              onToggleDebugNumbers={() => setShowDebugNumbers((prev) => !prev)}
+            />
+          </div>
+          <div className="order-2 lg:order-3">
+            <ActorsRegionsCard
+              game={game}
+              language={language}
+              highlightedRegions={highlightedRegions}
+              highlightedActors={highlightedActors}
+            />
+          </div>
+          <div className="order-3 lg:order-1">
+            <DemoSeedsCard
+              language={language}
+              seedInput={seedInput}
+              onSeedInputChange={setSeedInput}
+              onStartRunWithSeed={startRunWithSeed}
+              onClearLocalData={clearLocalData}
+              newSeedName={newSeedName}
+              onNewSeedNameChange={setNewSeedName}
+              newSeedValue={newSeedValue}
+              onNewSeedValueChange={setNewSeedValue}
+              onAddCustomSeed={addCustomSeed}
+              seedMessage={seedMessage}
+              allSeeds={displaySeeds}
+              onRemoveCustomSeed={removeCustomSeed}
+            />
+          </div>
         </div>
       </div>
     </div>

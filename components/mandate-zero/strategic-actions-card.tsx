@@ -64,13 +64,16 @@ export function StrategicActionsCard({
                 {language === "bg" ? "Ситуация" : "Situation"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">{buildActionExplanation(action, language)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
                 AP {apCost}, {language === "bg" ? "възстановяване" : "cooldown"} {action.cooldown}
               </p>
-              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground sm:hidden">
+                Use this before crisis resolution to shape the next decision.
+              </p>
+              <p className="mt-2 hidden text-xs uppercase tracking-wide text-muted-foreground sm:block">
                 {language === "bg" ? "Прогнозен диапазон" : "Projected Outcome Window"}
               </p>
-              {(getActionOutcomeEstimate(action) ?? []).slice(0, 4).map((estimate) => {
+              <div className="hidden sm:block">{(getActionOutcomeEstimate(action) ?? []).slice(0, 4).map((estimate) => {
                 const statLabel = getStatLabel(estimate.system, language);
                 const minLabel = estimate.min > 0 ? `+${estimate.min}` : `${estimate.min}`;
                 const maxLabel = estimate.max > 0 ? `+${estimate.max}` : `${estimate.max}`;
@@ -80,14 +83,22 @@ export function StrategicActionsCard({
                     {getConfidenceLabel(estimate.confidence, language)})
                   </p>
                 );
-              })}
+              })}</div>
               {upcomingEffects.length > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {language === "bg" ? "Планирани последствия:" : "Queued fallout:"}{" "}
-                  {upcomingEffects
-                    .slice(0, 2)
-                    .map((effect) => `${effect.source} (T${effect.turnToApply})`)
-                    .join(" | ")}
+                  <span className="sm:hidden">
+                    {upcomingEffects
+                      .slice(0, 2)
+                      .map((effect) => effect.source)
+                      .join(" | ")}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {upcomingEffects
+                      .slice(0, 2)
+                      .map((effect) => `${effect.source} (T${effect.turnToApply})`)
+                      .join(" | ")}
+                  </span>
                 </p>
               ) : null}
               <div className="mt-2 flex items-center gap-2">

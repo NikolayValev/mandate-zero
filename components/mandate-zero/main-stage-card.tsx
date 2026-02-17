@@ -66,6 +66,19 @@ function phaseLabel(phase: GameState["phase"], language: AppLanguage) {
   return language === "bg" ? "Поражение" : "Defeat";
 }
 
+function severityText(severity: number) {
+  if (severity >= 5) {
+    return "Critical";
+  }
+  if (severity >= 4) {
+    return "High";
+  }
+  if (severity >= 3) {
+    return "Elevated";
+  }
+  return "Contained";
+}
+
 export function MainStageCard({
   game,
   scenario,
@@ -133,11 +146,14 @@ export function MainStageCard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle>{language === "bg" ? "Симулация Mandate Zero" : "Mandate Zero Simulation"}</CardTitle>
-            <CardDescription>
+            <CardDescription className="hidden sm:block">
               {language === "bg" ? "Ход" : "Turn"} {Math.min(game.turn, game.maxTurns)}{" "}
               {language === "bg" ? "от" : "of"} {game.maxTurns} | AP{" "}
               {game.actionPoints}/{game.maxActionPoints}
             </CardDescription>
+            <p className="mt-1 text-xs text-muted-foreground sm:hidden">
+              Read the situation and choose one response.
+            </p>
             <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
               {language === "bg" ? "Сийд" : "Seed"}: {game.seedText} |{" "}
               {language === "bg" ? "Увереност" : "Confidence"}: {getConfidenceLabel(intelProfile.confidence, language)}
@@ -145,8 +161,14 @@ export function MainStageCard({
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={phaseVariant(game.phase)}>{phaseLabel(game.phase, language)}</Badge>
-            <Badge variant={game.coupRisk >= 70 ? "destructive" : "outline"}>
+            <Badge
+              variant={game.coupRisk >= 70 ? "destructive" : "outline"}
+              className="hidden sm:inline-flex"
+            >
               {language === "bg" ? "Риск от преврат" : "Coup Risk"} {game.coupRisk}
+            </Badge>
+            <Badge variant={game.coupRisk >= 70 ? "destructive" : "outline"} className="sm:hidden">
+              Coup Risk
             </Badge>
           </div>
         </div>
@@ -158,11 +180,17 @@ export function MainStageCard({
               {language === "bg" ? "Активна криза" : "Active Crisis"}
             </p>
             <div className="flex items-center gap-2">
-              <Badge variant={scenario.severity >= 4 ? "destructive" : "secondary"}>
+              <Badge variant={scenario.severity >= 4 ? "destructive" : "secondary"} className="hidden sm:inline-flex">
                 {language === "bg" ? "Тежест" : "Severity"} {scenario.severity}/5
               </Badge>
-              <Badge variant="outline">
+              <Badge variant={scenario.severity >= 4 ? "destructive" : "secondary"} className="sm:hidden">
+                {severityText(scenario.severity)}
+              </Badge>
+              <Badge variant="outline" className="hidden sm:inline-flex">
                 {language === "bg" ? "Ескалация след" : "Escalation in"} {escalationClock}
+              </Badge>
+              <Badge variant="outline" className="sm:hidden">
+                Escalation
               </Badge>
             </div>
           </div>
@@ -171,7 +199,12 @@ export function MainStageCard({
             {language === "bg" ? "Кратка обстановка" : "Situation Brief"}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">{buildScenarioBrief(scenario, language)}</p>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground sm:hidden">
+            {hotRegions + criticalRegions > 2
+              ? "Escalation pressure is spreading."
+              : "Regional pressure is still contained."}
+          </p>
+          <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
             {language === "bg"
               ? `Преглед на разпространението: ${hotRegions} горещи региона, ${criticalRegions} критични.`
               : `Spread preview: ${hotRegions} hot regions, ${criticalRegions} critical.`}
@@ -203,6 +236,9 @@ export function MainStageCard({
         ) : null}
 
         <div className="space-y-3">
+          <p className="text-sm text-muted-foreground sm:hidden">
+            Read each option and follow the text cues for risk and stakeholder pulse.
+          </p>
           {scenario.options.map((option) => (
             <button
               key={option.id}
@@ -230,10 +266,10 @@ export function MainStageCard({
               <p className="mt-1 text-sm text-muted-foreground">
                 {buildSituationExplanation(scenario, option, language)}
               </p>
-              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <p className="mt-2 hidden text-xs uppercase tracking-wide text-muted-foreground sm:block">
                 {language === "bg" ? "Прогнозен диапазон" : "Projected Outcome Window"}
               </p>
-              <div className="mt-2 grid gap-1">
+              <div className="mt-2 hidden gap-1 sm:grid">
                 {(optionOutcomeEstimates[option.id] ?? []).slice(0, 4).map((estimate) => {
                   const statLabel = getStatLabel(estimate.system, language);
                   const minLabel = estimate.min > 0 ? `+${estimate.min}` : `${estimate.min}`;
@@ -247,10 +283,13 @@ export function MainStageCard({
                 })}
               </div>
               {(optionOutcomeEstimates[option.id] ?? []).length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
                   {language === "bg" ? "Прогнозен ефект: неутрален" : "Estimated impact: neutral"}
                 </p>
               ) : null}
+              <p className="mt-2 text-xs text-muted-foreground sm:hidden">
+                Focus on the narrative, risk tag, and stakeholder pulse.
+              </p>
               {option.delayed && option.delayed.length > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {language === "bg" ? "Възможни отложени последствия:" : "Possible delayed fallout:"}{" "}
@@ -260,10 +299,18 @@ export function MainStageCard({
               {upcomingEffects.length > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {language === "bg" ? "Планирани последствия:" : "Queued fallout:"}{" "}
-                  {upcomingEffects
-                    .slice(0, 2)
-                    .map((effect) => `${effect.source} (T${effect.turnToApply})`)
-                    .join(" | ")}
+                  <span className="sm:hidden">
+                    {upcomingEffects
+                      .slice(0, 2)
+                      .map((effect) => effect.source)
+                      .join(" | ")}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {upcomingEffects
+                      .slice(0, 2)
+                      .map((effect) => `${effect.source} (T${effect.turnToApply})`)
+                      .join(" | ")}
+                  </span>
                 </p>
               ) : null}
               <p className="mt-2 text-xs text-muted-foreground">

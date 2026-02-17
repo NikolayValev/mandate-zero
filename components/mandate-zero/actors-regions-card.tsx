@@ -47,6 +47,16 @@ function stressBand(stress: number, language: AppLanguage) {
   return language === "bg" ? "Овладян" : "Contained";
 }
 
+function actorBand(value: number) {
+  if (value >= 70) {
+    return "High";
+  }
+  if (value >= 45) {
+    return "Elevated";
+  }
+  return "Low";
+}
+
 export function ActorsRegionsCard({
   game,
   highlightedRegions,
@@ -156,9 +166,12 @@ export function ActorsRegionsCard({
                         className="flex h-4 items-center justify-end rounded-full bg-emerald-500 px-2 text-[10px] font-semibold text-emerald-50 transition-all"
                         style={{ width: `${state.loyalty}%` }}
                       >
-                        {state.loyalty}%
+                        <span className="hidden sm:inline">{state.loyalty}%</span>
                       </div>
                     </div>
+                    <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">
+                      {actorBand(state.loyalty)}
+                    </p>
                   </div>
                   <div>
                     <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -169,9 +182,12 @@ export function ActorsRegionsCard({
                         className="flex h-4 items-center justify-end rounded-full bg-rose-500 px-2 text-[10px] font-semibold text-rose-50 transition-all"
                         style={{ width: `${state.pressure}%` }}
                       >
-                        {state.pressure}%
+                        <span className="hidden sm:inline">{state.pressure}%</span>
                       </div>
                     </div>
+                    <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">
+                      {actorBand(state.pressure)}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -179,7 +195,7 @@ export function ActorsRegionsCard({
           })}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {REGION_META.map((region) => {
             const stress = game.regions[region.key];
             return (
@@ -193,7 +209,7 @@ export function ActorsRegionsCard({
               >
                 <div className="mb-1 flex items-center justify-between">
                   <span>{getRegionLabel(region.key, language)}</span>
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="hidden text-[10px] sm:inline-flex">
                     {stress}
                   </Badge>
                 </div>

@@ -65,7 +65,7 @@ export function SimulationLogCard({
                   onClick={() => onSelectEntry(entry)}
                 >
                   <div className="w-full">
-                    <p className="font-medium">{language === "bg" ? "Ход" : "Turn"} {entry.turn}</p>
+                    <p className="hidden font-medium sm:block">{language === "bg" ? "Ход" : "Turn"} {entry.turn}</p>
                     <p className="text-xs text-muted-foreground">
                       {language === "bg" ? "Действие" : "Action"}: {entry.actionLabel}
                     </p>

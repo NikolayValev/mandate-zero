@@ -182,13 +182,15 @@ export function RegionTheaterMap({
                   <p className="text-[10px] font-semibold uppercase tracking-wide">
                     {getRegionLabel(regionKey, language)}
                   </p>
-                  <p className="text-xs">{language === "bg" ? "Натиск" : "Stress"} {stress}</p>
-                  <p className="text-[10px] text-white/90">
-                    {language === "bg" ? "Натиск" : "Pressure"} {pressure}% |{" "}
-                    {language === "bg" ? "Лоялност" : "Loyalty"} {loyalty}%
+                  <p className="text-xs sm:hidden">{severityLabel(stress, language)}</p>
+                  <p className="hidden text-xs sm:block">
+                    Stress {stress}
+                  </p>
+                  <p className="hidden text-[10px] text-white/90 sm:block">
+                    Pressure {pressure}% | Loyalty {loyalty}%
                   </p>
                   {stressDelta !== 0 ? (
-                    <p className="mt-1 text-[10px] text-white/90">
+                    <p className="mt-1 hidden text-[10px] text-white/90 sm:block">
                       {language === "bg" ? "Промяна за хода" : "Turn delta"}{" "}
                       {stressDelta > 0 ? `+${stressDelta}` : stressDelta}
                     </p>

@@ -49,7 +49,14 @@ export function PoliciesCard({ game, canPlay, language, policies, onEnactPolicy 
                     ? language === "bg"
                       ? "Активна"
                       : "Active"
-                    : `AP ${policy.apCost} / ${getResourceLabel("capital", language)} ${policy.capitalCost}`}
+                    : (
+                      <>
+                        <span className="sm:hidden">Commitment</span>
+                        <span className="hidden sm:inline">
+                          {`AP ${policy.apCost} / ${getResourceLabel("capital", language)} ${policy.capitalCost}`}
+                        </span>
+                      </>
+                    )}
                 </Badge>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
