@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -149,9 +148,8 @@ export function ActorsRegionsCard({
                 key={actor.key}
                 data-testid={`actor-card-${actor.key}`}
                 data-highlighted={highlightedActors.includes(actor.key) ? "true" : "false"}
-                className={`rounded-md border bg-gradient-to-b from-background to-muted/30 p-3 transition-colors ${
-                  highlightedActors.includes(actor.key) ? "border-primary/60 bg-primary/5 animate-pulse" : ""
-                }`}
+                className={`rounded-md border bg-gradient-to-b from-background to-muted/30 p-3 transition-colors ${highlightedActors.includes(actor.key) ? "border-primary/60 bg-primary/5 animate-pulse" : ""
+                  }`}
               >
                 <div className="mb-2 flex items-center justify-between text-xs">
                   <span className="font-medium">{getActorLabel(actor.key, language)}</span>
@@ -165,9 +163,7 @@ export function ActorsRegionsCard({
                       <div
                         className="flex h-4 items-center justify-end rounded-full bg-emerald-500 px-2 text-[10px] font-semibold text-emerald-50 transition-all"
                         style={{ width: `${state.loyalty}%` }}
-                      >
-                        <span className="hidden sm:inline">{state.loyalty}%</span>
-                      </div>
+                      />
                     </div>
                     <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">
                       {actorBand(state.loyalty)}
@@ -181,9 +177,7 @@ export function ActorsRegionsCard({
                       <div
                         className="flex h-4 items-center justify-end rounded-full bg-rose-500 px-2 text-[10px] font-semibold text-rose-50 transition-all"
                         style={{ width: `${state.pressure}%` }}
-                      >
-                        <span className="hidden sm:inline">{state.pressure}%</span>
-                      </div>
+                      />
                     </div>
                     <p className="mt-1 text-[10px] text-muted-foreground sm:hidden">
                       {actorBand(state.pressure)}
@@ -203,15 +197,11 @@ export function ActorsRegionsCard({
                 key={region.key}
                 data-testid={`region-card-${region.key}`}
                 data-highlighted={highlightedRegions.includes(region.key) ? "true" : "false"}
-                className={`rounded-md border p-2 text-xs ${regionClass(stress)} ${
-                  highlightedRegions.includes(region.key) ? "ring-2 ring-primary/60" : ""
-                } ${selectedRegion === region.key ? "ring-2 ring-cyan-500/70" : ""}`}
+                className={`rounded-md border p-2 text-xs ${regionClass(stress)} ${highlightedRegions.includes(region.key) ? "ring-2 ring-primary/60" : ""
+                  } ${selectedRegion === region.key ? "ring-2 ring-cyan-500/70" : ""}`}
               >
                 <div className="mb-1 flex items-center justify-between">
                   <span>{getRegionLabel(region.key, language)}</span>
-                  <Badge variant="outline" className="hidden text-[10px] sm:inline-flex">
-                    {stress}
-                  </Badge>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
                   {language === "bg" ? "Ниво на натиск:" : "Stress band:"} {stressBand(stress, language)}

@@ -11,6 +11,7 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
+    "test:bot": "playwright test bot-play.spec.ts --headed",
     "check": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {

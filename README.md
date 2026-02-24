@@ -80,6 +80,11 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+## AI Agent Guidelines
+
+If you are an AI assistant working on this repository, **you must read [AGENT_INSTRUCTIONS.md](./AGENT_INSTRUCTIONS.md)**.
+It details the core architectural constraints (determinism, pure functions vs. UI state), directory map, and checking procedures you must follow before committing code for the user.
+
 ## CI
 
 GitHub Actions workflow:

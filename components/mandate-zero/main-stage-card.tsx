@@ -225,7 +225,7 @@ export function MainStageCard({
                   className="rounded-lg border p-3 text-left transition hover:bg-accent"
                   onClick={() => onChooseDoctrine(option.id)}
                 >
-                <p className="font-medium">{option.title}</p>
+                  <p className="font-medium">{option.title}</p>
                   <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
                     {option.description}
                   </p>
@@ -251,7 +251,7 @@ export function MainStageCard({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">{option.title}</p>
                 <div className="flex gap-2">
-                <Badge variant={riskVariant(option.risk)}>
+                  <Badge variant={riskVariant(option.risk)}>
                     {language === "bg" ? "Риск" : "Risk"} {getRiskLabel(option.risk, language)}
                   </Badge>
                   <Badge variant="outline" className="hidden sm:inline-flex">
@@ -266,30 +266,25 @@ export function MainStageCard({
               <p className="mt-1 text-sm text-muted-foreground">
                 {buildSituationExplanation(scenario, option, language)}
               </p>
-              <p className="mt-2 hidden text-xs uppercase tracking-wide text-muted-foreground sm:block">
-                {language === "bg" ? "Прогнозен диапазон" : "Projected Outcome Window"}
-              </p>
-              <div className="mt-2 hidden gap-1 sm:grid">
+              <div className="mt-3 flex flex-wrap gap-2 sm:grid sm:grid-cols-2">
                 {(optionOutcomeEstimates[option.id] ?? []).slice(0, 4).map((estimate) => {
                   const statLabel = getStatLabel(estimate.system, language);
-                  const minLabel = estimate.min > 0 ? `+${estimate.min}` : `${estimate.min}`;
-                  const maxLabel = estimate.max > 0 ? `+${estimate.max}` : `${estimate.max}`;
+                  const isPositive = estimate.max > 0;
                   return (
-                    <p key={`${option.id}-${estimate.system}`} className="text-xs text-muted-foreground">
-                      {statLabel}: {minLabel} {language === "bg" ? "до" : "to"} {maxLabel} (
-                      {getConfidenceLabel(estimate.confidence, language)})
-                    </p>
+                    <div key={`${option.id}-${estimate.system}`} className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className={isPositive ? "text-emerald-500/90" : "text-rose-500/90"}>
+                        {isPositive ? "▲" : "▼"}
+                      </span>
+                      <span>{statLabel}</span>
+                    </div>
                   );
                 })}
               </div>
               {(optionOutcomeEstimates[option.id] ?? []).length === 0 ? (
-                <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
+                <p className="mt-2 text-xs text-muted-foreground">
                   {language === "bg" ? "Прогнозен ефект: неутрален" : "Estimated impact: neutral"}
                 </p>
               ) : null}
-              <p className="mt-2 text-xs text-muted-foreground sm:hidden">
-                Focus on the narrative, risk tag, and stakeholder pulse.
-              </p>
               {option.delayed && option.delayed.length > 0 ? (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {language === "bg" ? "Възможни отложени последствия:" : "Possible delayed fallout:"}{" "}

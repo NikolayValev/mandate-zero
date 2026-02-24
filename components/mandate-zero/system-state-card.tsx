@@ -85,9 +85,8 @@ export function SystemStateCard({
               key={stat.key}
               data-testid={`system-row-${stat.key}`}
               data-highlighted={highlighted ? "true" : "false"}
-              className={`space-y-1 rounded-md border p-2 transition-colors ${
-                highlighted ? "border-primary/60 bg-primary/5 animate-pulse" : "border-transparent"
-              }`}
+              className={`space-y-1 rounded-md border p-2 transition-colors ${highlighted ? "border-primary/60 bg-primary/5 animate-pulse" : "border-transparent"
+                }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm">{getStatLabel(stat.key, language)}</div>
