@@ -3,7 +3,9 @@
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
+import { Html } from "@react-three/drei";
 import { REGION_ACTOR_FOCUS } from "../region-theater-map";
+import { getRegionLabel, type AppLanguage } from "../i18n";
 import type { GameState, RegionKey } from "../types";
 
 const REGION_POSITIONS: Record<RegionKey, [number, number]> = {
@@ -27,6 +29,26 @@ function clamp(value: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
 }
 
+function stressBand(stress: number, language: AppLanguage) {
+  if (stress >= 85) return language === "bg" ? "Критичен" : "Critical";
+  if (stress >= 70) return language === "bg" ? "Висок" : "High";
+  if (stress >= 45) return language === "bg" ? "Повишен" : "Elevated";
+  return language === "bg" ? "Овладян" : "Contained";
+}
+
+function actorBand(value: number) {
+  if (value >= 70) return "High";
+  if (value >= 45) return "Elevated";
+  return "Low";
+}
+
+function labelColor(stress: number) {
+  if (stress >= 85) return "bg-rose-500/90 text-white border-rose-400";
+  if (stress >= 70) return "bg-orange-500/90 text-white border-orange-400";
+  if (stress >= 45) return "bg-amber-500/90 text-white border-amber-400";
+  return "bg-emerald-500/80 text-white border-emerald-400";
+}
+
 interface RegionBlockProps {
   region: RegionKey;
   game: GameState;
@@ -35,6 +57,7 @@ interface RegionBlockProps {
   highlightedRegions: RegionKey[];
   activeCrisisRegions: RegionKey[];
   queuedFalloutRegions: RegionKey[];
+  language: AppLanguage;
   onHoverRegion: (region: RegionKey | null) => void;
   onSelectRegion: (region: RegionKey) => void;
 }
@@ -47,6 +70,7 @@ function RegionBlock({
   highlightedRegions,
   activeCrisisRegions,
   queuedFalloutRegions,
+  language,
   onHoverRegion,
   onSelectRegion,
 }: RegionBlockProps) {
@@ -70,6 +94,8 @@ function RegionBlock({
     // Keep block bases anchored to the floor as height changes.
     groupRef.current.position.y = nextScale / 2;
   });
+
+  const anchorHeight = 0.5 + Math.max(0, (baseHeight - 1) / 2); // Roughly on top of the box
 
   return (
     <group
@@ -104,6 +130,40 @@ function RegionBlock({
           opacity={isSelected ? 0.95 : isHovered ? 0.85 : 0.45}
         />
       </mesh>
+
+      <Html
+        position={[0, anchorHeight, 0]}
+        center
+        distanceFactor={10}
+        zIndexRange={[100, 0]}
+      >
+        <div
+          data-testid={`region-card-${region}`}
+          data-highlighted={isHighlighted ? "true" : "false"}
+          className={`rounded-md border px-2 py-1 flex flex-col items-center justify-center transition-all duration-300 drop-shadow-md backdrop-blur-sm ${isSelected || isHovered || isHighlighted
+            ? `${labelColor(stress)} scale-110 z-20`
+            : "bg-slate-900/60 text-slate-300 border-white/10 z-10"
+            }`}
+          style={{ pointerEvents: "none", minWidth: "120px" }}
+        >
+          <div className="text-xs font-bold uppercase tracking-wider drop-shadow">
+            {getRegionLabel(region, language)}
+          </div>
+          <div className="text-[10px] font-medium opacity-90">
+            {stressBand(stress, language)}
+          </div>
+
+          {(isSelected || isHovered || isHighlighted) && (
+            <div className="mt-1 border-t border-white/20 pt-1 text-center text-[9px] w-full">
+              <div className="font-semibold">{REGION_ACTOR_FOCUS[region].toUpperCase()}</div>
+              <div className="flex justify-between gap-2 mt-0.5 opacity-80">
+                <span>L: {actorBand(actor.loyalty)}</span>
+                <span>P: {actorBand(actor.pressure)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </Html>
     </group>
   );
 }
@@ -115,6 +175,7 @@ interface RegionsProps {
   highlightedRegions: RegionKey[];
   activeCrisisRegions: RegionKey[];
   queuedFalloutRegions: RegionKey[];
+  language: AppLanguage;
   onHoverRegion: (region: RegionKey | null) => void;
   onSelectRegion: (region: RegionKey) => void;
 }
@@ -126,6 +187,7 @@ export function Regions({
   highlightedRegions,
   activeCrisisRegions,
   queuedFalloutRegions,
+  language,
   onHoverRegion,
   onSelectRegion,
 }: RegionsProps) {
@@ -142,6 +204,7 @@ export function Regions({
           highlightedRegions={highlightedRegions}
           activeCrisisRegions={activeCrisisRegions}
           queuedFalloutRegions={queuedFalloutRegions}
+          language={language}
           onHoverRegion={onHoverRegion}
           onSelectRegion={onSelectRegion}
         />

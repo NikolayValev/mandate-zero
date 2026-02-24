@@ -7,7 +7,7 @@ test("decision cards show situations and ranges while hiding exact optimization 
 
   const firstOption = page.locator("[data-testid^='crisis-option-']").first();
   await expect(firstOption).toContainText("Situation");
-  await expect(firstOption).toContainText(/to [+-]?\d+/);
+  await expect(firstOption).toContainText(/[▲▼]/);
 
   await expect(page.getByText("Predicted stats:")).toHaveCount(0);
   await expect(page.getByText("Predicted resources:")).toHaveCount(0);

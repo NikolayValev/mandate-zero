@@ -43,3 +43,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 lint_err.log
+e2e_err.log
+out.txt
+out.log
+github.log
+playwright.log
