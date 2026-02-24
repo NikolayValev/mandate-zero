@@ -5,7 +5,28 @@ import { Canvas } from "@react-three/fiber";
 import { REGION_META } from "../data";
 import { getRegionLabel, type AppLanguage } from "../i18n";
 import type { GameState, RegionKey } from "../types";
+import { REGION_ACTOR_FOCUS } from "../region-theater-map";
 import { Regions } from "./Regions";
+
+function stressBand(stress: number, language: AppLanguage) {
+  if (stress >= 85) return language === "bg" ? "Критичен" : "Critical";
+  if (stress >= 70) return language === "bg" ? "Висок" : "High";
+  if (stress >= 45) return language === "bg" ? "Повишен" : "Elevated";
+  return language === "bg" ? "Овладян" : "Contained";
+}
+
+function actorBand(value: number) {
+  if (value >= 70) return "High";
+  if (value >= 45) return "Elevated";
+  return "Low";
+}
+
+function labelColor(stress: number) {
+  if (stress >= 85) return "bg-rose-500/90 text-white border-rose-400";
+  if (stress >= 70) return "bg-orange-500/90 text-white border-orange-400";
+  if (stress >= 45) return "bg-amber-500/90 text-white border-amber-400";
+  return "bg-emerald-500/80 text-white border-emerald-400";
+}
 
 interface StateMeshSceneProps {
   game: GameState;
@@ -27,22 +48,21 @@ export function StateMeshScene({
   onSelectRegion,
 }: StateMeshSceneProps) {
   const [hoveredRegion, setHoveredRegion] = useState<RegionKey | null>(null);
-  const activeRegion = hoveredRegion ?? selectedRegion;
   const labelLayout = useMemo(
     () =>
       ({
-        north: { left: "34%", top: "30%" },
+        north: { left: "34%", top: "25%" },
         south: { left: "37%", top: "76%" },
         capital: { left: "52%", top: "48%" },
         industry: { left: "68%", top: "64%" },
-        border: { left: "79%", top: "33%" },
+        border: { left: "79%", top: "28%" },
         coast: { left: "20%", top: "58%" },
       }) as Record<RegionKey, { left: string; top: string }>,
     [],
   );
 
   return (
-    <div className="relative h-[220px] w-full overflow-hidden rounded-lg border bg-slate-950">
+    <div className="relative h-[420px] w-full overflow-hidden rounded-xl border bg-slate-950 shadow-inner">
       <Canvas
         frameloop="always"
         dpr={[1, 1.5]}
@@ -75,28 +95,47 @@ export function StateMeshScene({
           const isHovered = hoveredRegion === region.key;
           const isHighlighted = highlightedRegions.includes(region.key);
           const layout = labelLayout[region.key];
+          const stress = game.regions[region.key];
+          const actorFocus = REGION_ACTOR_FOCUS[region.key];
+          const actor = game.actors[actorFocus];
+
           return (
             <div
               key={region.key}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded px-1.5 py-0.5 text-[10px] font-medium transition ${
-                isSelected
-                  ? "bg-cyan-500/85 text-cyan-950"
-                  : isHovered
-                    ? "bg-slate-100/85 text-slate-900"
-                    : isHighlighted
-                      ? "bg-amber-300/85 text-amber-950"
-                      : "bg-slate-900/70 text-slate-200"
-              }`}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-md border px-2 py-1 flex flex-col items-center justify-center transition-all duration-300 drop-shadow-md backdrop-blur-sm ${isSelected || isHovered || isHighlighted
+                ? `${labelColor(stress)} scale-110 z-20`
+                : "bg-slate-900/60 text-slate-300 border-white/10 z-10"
+                }`}
               style={{ left: layout.left, top: layout.top }}
             >
-              {getRegionLabel(region.key, language)}
+              <div className="text-xs font-bold uppercase tracking-wider drop-shadow">
+                {getRegionLabel(region.key, language)}
+              </div>
+              <div className="text-[10px] font-medium opacity-90">
+                {stressBand(stress, language)}
+              </div>
+
+              {(isSelected || isHovered || isHighlighted) && (
+                <div className="mt-1 border-t border-white/20 pt-1 text-center text-[9px] w-full">
+                  <div className="font-semibold">{actorFocus.toUpperCase()}</div>
+                  <div className="flex justify-between gap-2 mt-0.5 opacity-80">
+                    <span>L: {actorBand(actor.loyalty)}</span>
+                    <span>P: {actorBand(actor.pressure)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-      <p className="pointer-events-none absolute bottom-1 left-2 rounded bg-slate-900/75 px-2 py-0.5 text-[10px] text-slate-200">
-        {language === "bg" ? "Фокус:" : "Focus:"} {getRegionLabel(activeRegion, language)}
-      </p>
+      <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1">
+        <p className="rounded bg-slate-900/80 px-2.5 py-1 text-xs font-semibold text-slate-100 backdrop-blur-sm">
+          {language === "bg" ? "Пространствен преглед" : "Spatial Overview"}
+        </p>
+        <p className="rounded bg-slate-900/80 px-2 py-0.5 text-[10px] text-slate-300 backdrop-blur-sm">
+          {language === "bg" ? "Височина = Дестабилизация" : "Height = Destabilization"}
+        </p>
+      </div>
     </div>
   );
 }

@@ -99,7 +99,6 @@ export function MandateZeroMvp({ language }: MandateZeroMvpProps) {
               game={runtime.game}
               language={language}
               highlightedRegions={runtime.highlightedRegions}
-              highlightedActors={runtime.highlightedActors}
             />
           </div>
           <div className="order-3 lg:order-1">
