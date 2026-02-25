@@ -48,3 +48,11 @@ out.txt
 out.log
 github.log
 playwright.log
+lint_utf8.log
+lint.log
+lint.txt
+log2.txt
+fail.log
+bot-fail.txt
+agent/reports/*.md
+!agent/reports/.gitkeep

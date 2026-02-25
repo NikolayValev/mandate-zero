@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
+import { EffectComposer, Bloom, Vignette, Noise } from "@react-three/postprocessing";
 import { type AppLanguage } from "../i18n";
 import type { GameState, RegionKey } from "../types";
 import { Regions } from "./Regions";
@@ -62,6 +63,12 @@ export function StateMeshScene({
           onHoverRegion={setHoveredRegion}
           onSelectRegion={onSelectRegion}
         />
+
+        <EffectComposer>
+          <Bloom luminanceThreshold={0.4} mipmapBlur intensity={0.8} />
+          <Noise opacity={0.07} />
+          <Vignette eskil={false} offset={0.1} darkness={1.1} />
+        </EffectComposer>
       </Canvas>
       <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1">
         <p className="rounded bg-slate-900/80 px-2.5 py-1 text-xs font-semibold text-slate-100 backdrop-blur-sm">

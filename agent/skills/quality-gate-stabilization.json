@@ -1,0 +1,13 @@
+﻿{
+  "id": "quality-gate-stabilization",
+  "title": "Quality Gate Stabilization",
+  "triggers": {
+    "commands": ["typecheck", "lint", "unit-tests"],
+    "patterns": ["typescript", "eslint", "vitest", "error", "failed"]
+  },
+  "playbook": [
+    "Fix typecheck and lint failures before gameplay regressions.",
+    "When tests fail, isolate deterministic engine logic first and validate with npm run test.",
+    "Keep changes small and rerun only the failing command before full validation."
+  ]
+}

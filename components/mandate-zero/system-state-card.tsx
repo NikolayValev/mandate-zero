@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,43 +75,51 @@ export function SystemStateCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {STAT_META.map((stat) => {
-          const value = game.stats[stat.key];
-          const tier = toTier(value);
-          const trend = computeTrend(game.systemHistory.map((snapshot) => snapshot[stat.key]));
-          const severityWidth = (5 - tier.severity) * 20;
-          const highlighted = highlightedSystems.includes(stat.key);
-          return (
-            <div
-              key={stat.key}
-              data-testid={`system-row-${stat.key}`}
-              data-highlighted={highlighted ? "true" : "false"}
-              className={`space-y-1 rounded-md border p-2 transition-colors ${highlighted ? "border-primary/60 bg-primary/5 animate-pulse" : "border-transparent"
-                }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-sm">{getStatLabel(stat.key, language)}</div>
-                <Badge
-                  data-testid={`system-tier-${stat.key}`}
-                  variant={tier.severity >= 3 ? "destructive" : tier.severity >= 2 ? "secondary" : "outline"}
-                >
-                  {getTierLabel(tier.label, language)} {getDirectionLabel(trend.direction, language)}
-                </Badge>
-              </div>
-              <div className="h-3 rounded-full bg-muted">
-                <div
-                  className="h-3 rounded-full bg-primary/70 transition-all"
-                  style={{ width: `${severityWidth}%` }}
-                />
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                {language === "bg" ? "Тренд" : "Trend"} {getDirectionLabel(trend.direction, language)}
-                {trend.momentum ? `, ${getMomentumLabel(trend.momentum, language)}` : ""}
-                {showDebugNumbers ? ` | ${value}` : ""}
-              </p>
-            </div>
-          );
-        })}
+        <AnimatePresence mode="popLayout">
+          {STAT_META.map((stat) => {
+            const value = game.stats[stat.key];
+            const tier = toTier(value);
+            const trend = computeTrend(game.systemHistory.map((snapshot) => snapshot[stat.key]));
+            const severityWidth = (5 - tier.severity) * 20;
+            const highlighted = highlightedSystems.includes(stat.key);
+            return (
+              <motion.div
+                layout
+                key={stat.key}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3 }}
+                data-testid={`system-row-${stat.key}`}
+                data-highlighted={highlighted ? "true" : "false"}
+                className={`space-y-1 rounded-md border p-2 ${highlighted ? "border-primary/60 bg-primary/5 animate-pulse" : "border-transparent transition-colors"
+                  }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm">{getStatLabel(stat.key, language)}</div>
+                  <Badge
+                    data-testid={`system-tier-${stat.key}`}
+                    variant={tier.severity >= 3 ? "destructive" : tier.severity >= 2 ? "secondary" : "outline"}
+                  >
+                    {getTierLabel(tier.label, language)} {getDirectionLabel(trend.direction, language)}
+                  </Badge>
+                </div>
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-primary/70"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${severityWidth}%` }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {language === "bg" ? "Тренд" : "Trend"} {getDirectionLabel(trend.direction, language)}
+                  {trend.momentum ? `, ${getMomentumLabel(trend.momentum, language)}` : ""}
+                  {showDebugNumbers ? ` | ${value}` : ""}
+                </p>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
 
         <div className="pt-2">
           <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">

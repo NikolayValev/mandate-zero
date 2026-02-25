@@ -85,6 +85,39 @@ npm run test:e2e
 If you are an AI assistant working on this repository, **you must read [AGENT_INSTRUCTIONS.md](./AGENT_INSTRUCTIONS.md)**.
 It details the core architectural constraints (determinism, pure functions vs. UI state), directory map, and checking procedures you must follow before committing code for the user.
 
+## Continuous Agent Improvement Loop
+
+This repository includes a persistent agent loop under `agent/` to keep improving quality across iterations.
+
+- Config: `agent/loop.config.json`
+- Persistent memory: `agent/memory.json`
+- Skill mapping: `agent/skills/*.json`
+- Iteration reports: `agent/reports/*.md`
+
+Run a single iteration:
+
+```bash
+npm run agent:loop
+```
+
+Run continuously (every 30 minutes):
+
+```bash
+npm run agent:loop:continuous
+```
+
+Include E2E checks in loop runs:
+
+```bash
+AGENT_RUN_E2E=1 npm run agent:loop
+```
+
+PowerShell equivalent:
+
+```powershell
+$env:AGENT_RUN_E2E="1"; npm run agent:loop
+```
+
 ## CI
 
 GitHub Actions workflow:

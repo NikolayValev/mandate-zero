@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -173,149 +174,160 @@ export function MainStageCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="rounded-lg border p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              {language === "bg" ? "Активна криза" : "Active Crisis"}
-            </p>
-            <div className="flex items-center gap-2">
-              <Badge variant={scenario.severity >= 4 ? "destructive" : "secondary"} className="hidden sm:inline-flex">
-                {language === "bg" ? "Тежест" : "Severity"} {scenario.severity}/5
-              </Badge>
-              <Badge variant={scenario.severity >= 4 ? "destructive" : "secondary"} className="sm:hidden">
-                {severityText(scenario.severity)}
-              </Badge>
-              <Badge variant="outline" className="hidden sm:inline-flex">
-                {language === "bg" ? "Ескалация след" : "Escalation in"} {escalationClock}
-              </Badge>
-              <Badge variant="outline" className="sm:hidden">
-                Escalation
-              </Badge>
+      <CardContent className="overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${game.turn}-${scenario.id}`}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            <div className="rounded-lg border p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {language === "bg" ? "Активна криза" : "Active Crisis"}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Badge variant={scenario.severity >= 4 ? "destructive" : "secondary"} className="hidden sm:inline-flex">
+                    {language === "bg" ? "Тежест" : "Severity"} {scenario.severity}/5
+                  </Badge>
+                  <Badge variant={scenario.severity >= 4 ? "destructive" : "secondary"} className="sm:hidden">
+                    {severityText(scenario.severity)}
+                  </Badge>
+                  <Badge variant="outline" className="hidden sm:inline-flex">
+                    {language === "bg" ? "Ескалация след" : "Escalation in"} {escalationClock}
+                  </Badge>
+                  <Badge variant="outline" className="sm:hidden">
+                    Escalation
+                  </Badge>
+                </div>
+              </div>
+              <h3 className="mt-2 text-lg font-semibold">{scenario.title}</h3>
+              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+                {language === "bg" ? "Кратка обстановка" : "Situation Brief"}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{buildScenarioBrief(scenario, language)}</p>
+              <p className="mt-2 text-xs text-muted-foreground sm:hidden">
+                {hotRegions + criticalRegions > 2
+                  ? "Escalation pressure is spreading."
+                  : "Regional pressure is still contained."}
+              </p>
+              <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
+                {language === "bg"
+                  ? `Преглед на разпространението: ${hotRegions} горещи региона, ${criticalRegions} критични.`
+                  : `Spread preview: ${hotRegions} hot regions, ${criticalRegions} critical.`}
+              </p>
             </div>
-          </div>
-          <h3 className="mt-2 text-lg font-semibold">{scenario.title}</h3>
-          <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
-            {language === "bg" ? "Кратка обстановка" : "Situation Brief"}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">{buildScenarioBrief(scenario, language)}</p>
-          <p className="mt-2 text-xs text-muted-foreground sm:hidden">
-            {hotRegions + criticalRegions > 2
-              ? "Escalation pressure is spreading."
-              : "Regional pressure is still contained."}
-          </p>
-          <p className="mt-2 hidden text-xs text-muted-foreground sm:block">
-            {language === "bg"
-              ? `Преглед на разпространението: ${hotRegions} горещи региона, ${criticalRegions} критични.`
-              : `Spread preview: ${hotRegions} hot regions, ${criticalRegions} critical.`}
-          </p>
-        </div>
 
-        {!game.doctrine ? (
-          <div className="space-y-3 rounded-lg border p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              {language === "bg" ? "Избери доктрина (необратимо)" : "Choose Doctrine (irreversible)"}
-            </p>
-            <div className="grid gap-3 md:grid-cols-3">
-              {doctrines.map((option) => (
+            {!game.doctrine ? (
+              <div className="space-y-3 rounded-lg border p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {language === "bg" ? "Избери доктрина (необратимо)" : "Choose Doctrine (irreversible)"}
+                </p>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {doctrines.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      data-testid={`doctrine-${option.id}`}
+                      className="rounded-lg border p-3 text-left transition hover:bg-accent"
+                      onClick={() => onChooseDoctrine(option.id)}
+                    >
+                      <p className="font-medium">{option.title}</p>
+                      <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
+                        {option.description}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground sm:hidden">
+                Read each option and follow the text cues for risk and stakeholder pulse.
+              </p>
+              {scenario.options.map((option) => (
                 <button
                   key={option.id}
                   type="button"
-                  data-testid={`doctrine-${option.id}`}
-                  className="rounded-lg border p-3 text-left transition hover:bg-accent"
-                  onClick={() => onChooseDoctrine(option.id)}
+                  data-testid={`crisis-option-${option.id}`}
+                  disabled={!canPlay}
+                  onClick={() => onResolveCrisisOption(option)}
+                  className="w-full rounded-lg border p-4 text-left transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <p className="font-medium">{option.title}</p>
-                  <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
-                    {option.description}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium">{option.title}</p>
+                    <div className="flex gap-2">
+                      <Badge variant={riskVariant(option.risk)}>
+                        {language === "bg" ? "Риск" : "Risk"} {getRiskLabel(option.risk, language)}
+                      </Badge>
+                      <Badge variant="outline" className="hidden sm:inline-flex">
+                        {getConfidenceLabel(intelProfile.confidence, language)}{" "}
+                        {language === "bg" ? "увереност" : "confidence"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
+                    {language === "bg" ? "Ситуация" : "Situation"}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {buildSituationExplanation(scenario, option, language)}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2 sm:grid sm:grid-cols-2">
+                    {(optionOutcomeEstimates[option.id] ?? []).slice(0, 4).map((estimate) => {
+                      const statLabel = getStatLabel(estimate.system, language);
+                      const isPositive = estimate.max > 0;
+                      return (
+                        <div key={`${option.id}-${estimate.system}`} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className={isPositive ? "text-emerald-500/90" : "text-rose-500/90"}>
+                            {isPositive ? "▲" : "▼"}
+                          </span>
+                          <span>{statLabel}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {(optionOutcomeEstimates[option.id] ?? []).length === 0 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {language === "bg" ? "Прогнозен ефект: неутрален" : "Estimated impact: neutral"}
+                    </p>
+                  ) : null}
+                  {option.delayed && option.delayed.length > 0 ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {language === "bg" ? "Възможни отложени последствия:" : "Possible delayed fallout:"}{" "}
+                      {option.delayed.map((item) => item.label).join(", ")}
+                    </p>
+                  ) : null}
+                  {upcomingEffects.length > 0 ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {language === "bg" ? "Планирани последствия:" : "Queued fallout:"}{" "}
+                      <span className="sm:hidden">
+                        {upcomingEffects
+                          .slice(0, 2)
+                          .map((effect) => effect.source)
+                          .join(" | ")}
+                      </span>
+                      <span className="hidden sm:inline">
+                        {upcomingEffects
+                          .slice(0, 2)
+                          .map((effect) => `${effect.source} (T${effect.turnToApply})`)
+                          .join(" | ")}
+                      </span>
+                    </p>
+                  ) : null}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {language === "bg" ? "Реакция на групите:" : "Stakeholder pulse:"} {option.factionReaction}
                   </p>
                 </button>
               ))}
             </div>
-          </div>
-        ) : null}
 
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground sm:hidden">
-            Read each option and follow the text cues for risk and stakeholder pulse.
-          </p>
-          {scenario.options.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              data-testid={`crisis-option-${option.id}`}
-              disabled={!canPlay}
-              onClick={() => onResolveCrisisOption(option)}
-              className="w-full rounded-lg border p-4 text-left transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-medium">{option.title}</p>
-                <div className="flex gap-2">
-                  <Badge variant={riskVariant(option.risk)}>
-                    {language === "bg" ? "Риск" : "Risk"} {getRiskLabel(option.risk, language)}
-                  </Badge>
-                  <Badge variant="outline" className="hidden sm:inline-flex">
-                    {getConfidenceLabel(intelProfile.confidence, language)}{" "}
-                    {language === "bg" ? "увереност" : "confidence"}
-                  </Badge>
-                </div>
-              </div>
-              <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
-                {language === "bg" ? "Ситуация" : "Situation"}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {buildSituationExplanation(scenario, option, language)}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2 sm:grid sm:grid-cols-2">
-                {(optionOutcomeEstimates[option.id] ?? []).slice(0, 4).map((estimate) => {
-                  const statLabel = getStatLabel(estimate.system, language);
-                  const isPositive = estimate.max > 0;
-                  return (
-                    <div key={`${option.id}-${estimate.system}`} className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className={isPositive ? "text-emerald-500/90" : "text-rose-500/90"}>
-                        {isPositive ? "▲" : "▼"}
-                      </span>
-                      <span>{statLabel}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              {(optionOutcomeEstimates[option.id] ?? []).length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {language === "bg" ? "Прогнозен ефект: неутрален" : "Estimated impact: neutral"}
-                </p>
-              ) : null}
-              {option.delayed && option.delayed.length > 0 ? (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {language === "bg" ? "Възможни отложени последствия:" : "Possible delayed fallout:"}{" "}
-                  {option.delayed.map((item) => item.label).join(", ")}
-                </p>
-              ) : null}
-              {upcomingEffects.length > 0 ? (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {language === "bg" ? "Планирани последствия:" : "Queued fallout:"}{" "}
-                  <span className="sm:hidden">
-                    {upcomingEffects
-                      .slice(0, 2)
-                      .map((effect) => effect.source)
-                      .join(" | ")}
-                  </span>
-                  <span className="hidden sm:inline">
-                    {upcomingEffects
-                      .slice(0, 2)
-                      .map((effect) => `${effect.source} (T${effect.turnToApply})`)
-                      .join(" | ")}
-                  </span>
-                </p>
-              ) : null}
-              <p className="mt-2 text-xs text-muted-foreground">
-                {language === "bg" ? "Реакция на групите:" : "Stakeholder pulse:"} {option.factionReaction}
-              </p>
-            </button>
-          ))}
-        </div>
-
-        <p className="text-sm text-muted-foreground sm:text-sm">{game.message}</p>
+            <p className="text-sm text-muted-foreground sm:text-sm">{game.message}</p>
+          </motion.div>
+        </AnimatePresence>
       </CardContent>
     </Card>
   );

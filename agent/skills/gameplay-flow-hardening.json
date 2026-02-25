@@ -1,0 +1,13 @@
+﻿{
+  "id": "gameplay-flow-hardening",
+  "title": "Gameplay Flow Hardening",
+  "triggers": {
+    "commands": ["e2e-mobile-tapflow"],
+    "patterns": ["playwright", "timeout", "locator", "toBeVisible", "toHaveCount"]
+  },
+  "playbook": [
+    "Reproduce failing flow locally with npx playwright test --headed tests/e2e/mobile-tapflow.spec.ts.",
+    "Prefer resilient selectors and explicit wait expectations over fixed delays.",
+    "If UI state changed intentionally, update e2e assertions and capture the behavior in docs."
+  ]
+}
