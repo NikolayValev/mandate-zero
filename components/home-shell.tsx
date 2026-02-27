@@ -61,8 +61,8 @@ export function HomeShell() {
           <header className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">
               {language === "bg"
-                ? "Води държавата през 10 кризисни хода"
-                : "Lead the state through 10 crisis turns"}
+                ? "Води държавата през 12 кризисни хода"
+                : "Lead the state through 12 crisis turns"}
             </h1>
             <p className="max-w-4xl text-sm text-muted-foreground">
               {language === "bg"
@@ -84,3 +84,5 @@ export function HomeShell() {
     </main>
   );
 }
+
+

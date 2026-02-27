@@ -5,7 +5,7 @@ export async function resetLocalStateAndOpenHome(page: Page) {
     window.localStorage.clear();
   });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Lead the state through 10 crisis turns/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Lead the state through 12 crisis turns/i })).toBeVisible();
   const onboardingDismiss = page.getByTestId("onboarding-dismiss");
   if (await onboardingDismiss.count()) {
     await onboardingDismiss.click();
@@ -18,6 +18,8 @@ export async function chooseDoctrine(page: Page, doctrineId: "technocrat" | "pop
 }
 
 export async function resolveFirstCrisisOption(page: Page) {
-  await page.locator("[data-testid^='crisis-option-']").first().click();
+  const option = page.locator("[data-testid^='crisis-option-']").first();
+  await expect(option).toBeVisible();
+  await option.click({ force: true, timeout: 10_000 });
   await expect(page.getByTestId("causality-entry").first()).toBeVisible();
 }

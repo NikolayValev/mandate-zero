@@ -8,7 +8,9 @@ import {
   applyStatEffects,
   clamp,
   computeBaselineDrift,
+  computeMandateObjectives,
   computePressureGain,
+  computePressureRelief,
   computeSystemCoupling,
   evaluateThresholdTriggers,
   mergeActorEffects,
@@ -159,7 +161,8 @@ export function triggerCrisisResolutionAction({
     criticalRegionsNext,
     stats.security,
   );
-  const pressure = clamp(game.pressure + pressureGain);
+  const pressureRelief = computePressureRelief(stats.trust, criticalRegionsNext, option.tags ?? []);
+  const pressure = clamp(game.pressure + pressureGain - pressureRelief);
 
   const thresholdTriggers = evaluateThresholdTriggers(
     game.stats,
@@ -180,7 +183,7 @@ export function triggerCrisisResolutionAction({
   let message =
     language === "bg"
       ? `${localizedScenarioTitle}: ${option.title}. ${regionSimulation.summary}. ÐÐ°Ñ‚Ð¸ÑÐº +${pressureGain}.`
-      : `${localizedScenarioTitle}: ${option.title}. ${regionSimulation.summary}. Pressure +${pressureGain}.`;
+      : `${localizedScenarioTitle}: ${option.title}. ${regionSimulation.summary}. Pressure +${pressureGain}${pressureRelief > 0 ? `, relief -${pressureRelief}` : ""}.`;
 
   const collapsedStats = STAT_META.filter((entry) => stats[entry.key] === 0);
   if (collapsedStats.length > 0) {
@@ -234,15 +237,14 @@ export function triggerCrisisResolutionAction({
   let chainRuleId: string | null = null;
   if (phase === "playing") {
     if (nextTurn > game.maxTurns) {
-      const averageStress =
-        Object.values(regions).reduce((sum, value) => sum + value, 0) / REGION_META.length;
-      if (
-        stats.stability >= 40 &&
-        stats.trust >= 35 &&
-        coupRisk < 70 &&
-        averageStress < 70 &&
-        pressure < 85
-      ) {
+      const objectives = computeMandateObjectives({
+        ...game,
+        stats,
+        regions,
+        pressure,
+        coupRisk,
+      });
+      if (objectives.passes.all) {
         phase = "won";
         message =
           language === "bg"

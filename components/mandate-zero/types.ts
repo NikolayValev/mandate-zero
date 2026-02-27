@@ -200,6 +200,23 @@ export interface OutcomeEstimate {
   confidence: IntelProfile["confidence"];
 }
 
+export interface MandateObjectiveSnapshot {
+  stabilityTarget: number;
+  trustTarget: number;
+  pressureCap: number;
+  avgStressCap: number;
+  coupRiskCap: number;
+  currentAvgStress: number;
+  passes: {
+    stability: boolean;
+    trust: boolean;
+    pressure: boolean;
+    avgStress: boolean;
+    coupRisk: boolean;
+    all: boolean;
+  };
+}
+
 export interface GameState {
   seedText: string;
   rngState: number;

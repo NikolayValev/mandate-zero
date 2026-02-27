@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { STAT_META } from "./data";
-import { summarizeDelta, toPressureState, toTier } from "./engine";
+import { computeMandateObjectives, summarizeDelta, toPressureState, toTier } from "./engine";
 import {
   getPressureLabel,
   getRegionLabel,
@@ -35,6 +35,7 @@ function topRegions(entries: CausalityEntry[]): RegionKey[] {
 }
 
 export function RunDebriefCard({ game, entries, language, onRestart }: RunDebriefCardProps) {
+  const objectives = computeMandateObjectives(game);
   const pressureState = toPressureState(game.pressure);
   const keyChoices = entries
     .filter((entry) => !entry.actionLabel.startsWith("Doctrine:"))
@@ -43,6 +44,29 @@ export function RunDebriefCard({ game, entries, language, onRestart }: RunDebrie
   const triggered = [...new Set(entries.flatMap((entry) => entry.thresholdsTriggered))].slice(0, 3);
   const delayed = [...new Set(entries.flatMap((entry) => entry.delayedEnqueued))].slice(0, 3);
   const hotspots = topRegions(entries).map((region) => getRegionLabel(region, language));
+  const objectiveLabels =
+    language === "bg"
+      ? {
+          stability: "Стабилност",
+          trust: "Доверие",
+          pressure: "Натиск",
+          avgStress: "Среден стрес",
+          coupRisk: "Риск от преврат",
+        }
+      : {
+          stability: "Stability",
+          trust: "Trust",
+          pressure: "Pressure",
+          avgStress: "Avg Stress",
+          coupRisk: "Coup Risk",
+        };
+  const failedObjectives = [
+    !objectives.passes.stability ? `${objectiveLabels.stability} < ${objectives.stabilityTarget}` : null,
+    !objectives.passes.trust ? `${objectiveLabels.trust} < ${objectives.trustTarget}` : null,
+    !objectives.passes.pressure ? `${objectiveLabels.pressure} >= ${objectives.pressureCap}` : null,
+    !objectives.passes.avgStress ? `${objectiveLabels.avgStress} >= ${objectives.avgStressCap}` : null,
+    !objectives.passes.coupRisk ? `${objectiveLabels.coupRisk} >= ${objectives.coupRiskCap}` : null,
+  ].filter((entry): entry is string => Boolean(entry));
   const localizedStatMeta = STAT_META.map((stat) => ({
     ...stat,
     label: getStatLabel(stat.key, language),
@@ -89,6 +113,10 @@ export function RunDebriefCard({ game, entries, language, onRestart }: RunDebrie
             (stat) =>
               `${getStatLabel(stat.key, language)} ${getTierLabel(toTier(game.stats[stat.key]).label, language)}`,
           ).join(" | ")}
+        </p>
+        <p>
+          {language === "bg" ? "Неизпълнени цели" : "Failed objectives"}:{" "}
+          {failedObjectives.length > 0 ? failedObjectives.join(" | ") : language === "bg" ? "Няма" : "None"}
         </p>
         <p>
           {language === "bg" ? "Последни системни промени" : "Recent system shifts"}:{" "}

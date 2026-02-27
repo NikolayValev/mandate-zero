@@ -50,6 +50,9 @@ export function SystemStateCard({
   onToggleDebugNumbers,
 }: SystemStateCardProps) {
   const isDev = process.env.NODE_ENV !== "production";
+  const averageStress =
+    Object.values(game.regions).reduce((sum, value) => sum + value, 0) /
+    Object.values(game.regions).length;
 
   return (
     <Card>
@@ -142,6 +145,12 @@ export function SystemStateCard({
             })}
           </div>
         </div>
+
+        <p className="text-xs text-muted-foreground">
+          {language === "bg" ? "Ð¡Ñ€ÐµÐ´ÐµÐ½ Ñ€ÐµÐ³Ð¸Ð¾Ð½Ð°Ð»ÐµÐ½ ÑÑ‚Ñ€ÐµÑ" : "Average regional stress"}:{" "}
+          {averageStress.toFixed(1)}{" "}
+          ({language === "bg" ? "Ñ†ÐµÐ» < 72" : "target < 72"})
+        </p>
 
         {warnings.length > 0 ? (
           <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs">

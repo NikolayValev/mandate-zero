@@ -14,6 +14,7 @@ import type {
   ActorKey,
   ActorState,
   CoreSystemKey,
+  MandateObjectiveSnapshot,
   CrisisFollowupRule,
   Delta,
   DemoSeed,
@@ -79,6 +80,14 @@ const PRESSURE_BANDS: Array<{ min: number; label: string; severity: number }> = 
   { min: 25, label: "Tense", severity: 1 },
   { min: 0, label: "Calm", severity: 0 },
 ];
+
+const MANDATE_OBJECTIVE_TARGETS = {
+  stabilityTarget: 38,
+  trustTarget: 32,
+  pressureCap: 88,
+  avgStressCap: 72,
+  coupRiskCap: 75,
+} as const;
 
 type OutcomeState = Pick<
   GameState,
@@ -556,7 +565,7 @@ export function pickScenarioWithChains(
     if (!ruleMatches(rule, scenario, option, stats, actors, pressure)) {
       continue;
     }
-    const chance = clamp(rule.chance + pressure * 0.002, 0, 0.95);
+    const chance = clamp(rule.chance + pressure * 0.001, 0, 0.95);
     const roll = randomChance(nextRng, chance);
     nextRng = roll.nextState;
     if (roll.hit) {
@@ -844,20 +853,115 @@ export function computePressureGain(
   criticalRegions: number,
   security: number,
 ) {
-  return Math.max(
-    1,
-    2 + scenarioSeverity + hotRegions + criticalRegions * 2 - Math.floor(security / 50),
+  const base = 1 + Math.floor((scenarioSeverity - 1) / 2);
+  const heat = Math.ceil(hotRegions / 2) + criticalRegions;
+  const mitigation = Math.floor(security / 30);
+  return clamp(base + heat - mitigation, 0, 7);
+}
+
+const PRESSURE_RELIEF_TAGS = new Set(["deescalation", "relief", "consensus", "continuity"]);
+
+export function computePressureRelief(
+  trust: number,
+  criticalRegions: number,
+  optionTags: string[] = [],
+) {
+  const trustRelief = trust >= 60 ? 1 : 0;
+  const criticalRelief = criticalRegions === 0 ? 1 : 0;
+  const tagRelief = optionTags.some((tag) => PRESSURE_RELIEF_TAGS.has(tag)) ? 1 : 0;
+  return Math.min(2, trustRelief + criticalRelief + tagRelief);
+}
+
+export interface PressureDeltaEstimateInput {
+  scenarioSeverity: number;
+  pressure: number;
+  security: number;
+  trust: number;
+  hotRegions: number;
+  criticalRegions: number;
+  optionSpread: number;
+  optionTags?: string[];
+}
+
+export interface PressureDeltaEstimate {
+  gain: number;
+  relief: number;
+  net: number;
+  projectedPressure: number;
+  effectiveSeverity: number;
+  projectedHotRegions: number;
+  projectedCriticalRegions: number;
+}
+
+export function estimatePressureDelta({
+  scenarioSeverity,
+  pressure,
+  security,
+  trust,
+  hotRegions,
+  criticalRegions,
+  optionSpread,
+  optionTags = [],
+}: PressureDeltaEstimateInput): PressureDeltaEstimate {
+  const effectiveSeverity = clamp(scenarioSeverity + Math.floor(pressure / 25), 1, 7);
+  const projectedHotRegions = clamp(
+    hotRegions + Math.max(0, optionSpread - 1) + (effectiveSeverity >= 6 ? 1 : 0),
+    0,
+    REGION_META.length,
   );
+  const projectedCriticalRegions = clamp(
+    criticalRegions + (optionSpread >= 3 ? 1 : 0) + (pressure >= 70 ? 1 : 0),
+    0,
+    REGION_META.length,
+  );
+  const gain = computePressureGain(
+    effectiveSeverity,
+    projectedHotRegions,
+    projectedCriticalRegions,
+    security,
+  );
+  const relief = computePressureRelief(trust, projectedCriticalRegions, optionTags);
+  const projectedPressure = clamp(pressure + gain - relief);
+  return {
+    gain,
+    relief,
+    net: projectedPressure - pressure,
+    projectedPressure,
+    effectiveSeverity,
+    projectedHotRegions,
+    projectedCriticalRegions,
+  };
 }
 
 export function computeSpreadChance(pressure: number) {
-  return clamp(0.08 + pressure * 0.005, 0.08, 0.58);
+  return clamp(0.08 + pressure * 0.004, 0.08, 0.52);
 }
 
 export function computeBaselineDrift(doctrineId: DoctrineId | null, pressure: number): Delta<StatKey> {
   const rules = getDoctrineRules(doctrineId);
-  const trustDecay = Math.max(0, 1 + Math.floor(pressure / 40) + rules.trustDecayModifier);
+  const trustDecay = Math.max(0, Math.floor(pressure / 45) + rules.trustDecayModifier);
   return { treasury: -2, trust: -trustDecay };
+}
+
+export function computeMandateObjectives(game: GameState): MandateObjectiveSnapshot {
+  const currentAvgStress =
+    Object.values(game.regions).reduce((sum, value) => sum + value, 0) / REGION_META.length;
+  const passes = {
+    stability: game.stats.stability >= MANDATE_OBJECTIVE_TARGETS.stabilityTarget,
+    trust: game.stats.trust >= MANDATE_OBJECTIVE_TARGETS.trustTarget,
+    pressure: game.pressure < MANDATE_OBJECTIVE_TARGETS.pressureCap,
+    avgStress: currentAvgStress < MANDATE_OBJECTIVE_TARGETS.avgStressCap,
+    coupRisk: game.coupRisk < MANDATE_OBJECTIVE_TARGETS.coupRiskCap,
+    all: false,
+  };
+  passes.all =
+    passes.stability && passes.trust && passes.pressure && passes.avgStress && passes.coupRisk;
+
+  return {
+    ...MANDATE_OBJECTIVE_TARGETS,
+    currentAvgStress,
+    passes,
+  };
 }
 
 export function evaluateThresholdTriggers(
@@ -954,7 +1058,7 @@ export function simulateRegions(
   const effectiveSeverity = clamp(scenario.severity + Math.floor(pressure / 25), 1, 7);
 
   for (const region of REGION_META.map((entry) => entry.key)) {
-    next[region] = clamp(next[region] - 2);
+    next[region] = clamp(next[region] - 3);
   }
 
   for (const target of scenario.regionTargets) {
@@ -964,7 +1068,7 @@ export function simulateRegions(
     const resentmentBias = Math.floor(memory.resentment / 25);
     const dependencyBias = Math.floor(memory.dependency / 35);
     next[target] = clamp(
-      next[target] + effectiveSeverity * 6 + option.spread * 3 + roll.value + resentmentBias - dependencyBias,
+      next[target] + effectiveSeverity * 4 + option.spread * 2 + roll.value + resentmentBias - dependencyBias,
     );
     impacted.add(target);
   }
@@ -987,14 +1091,23 @@ export function simulateRegions(
     const spillRoll = randomInt(nextRng, 0, REGION_META.length - 1);
     nextRng = spillRoll.nextState;
     const spillRegion = REGION_META[spillRoll.value].key;
-    next[spillRegion] = clamp(next[spillRegion] + effectiveSeverity * 2 + Math.floor(pressure / 25));
+    next[spillRegion] = clamp(
+      next[spillRegion] + Math.floor(effectiveSeverity / 2) + Math.floor(pressure / 45),
+    );
     impacted.add(spillRegion);
   }
-
-  const mitigationRoll = randomInt(nextRng, 0, REGION_META.length - 1);
-  nextRng = mitigationRoll.nextState;
-  const mitigationRegion = REGION_META[mitigationRoll.value].key;
-  const mitigation = Math.floor(security / 12) + 2;
+  const impactedList = [...impacted];
+  let mitigationRegion: RegionKey;
+  if (impactedList.length > 0) {
+    mitigationRegion = impactedList.reduce((highest, region) =>
+      next[region] > next[highest] ? region : highest,
+    );
+  } else {
+    const mitigationRoll = randomInt(nextRng, 0, REGION_META.length - 1);
+    nextRng = mitigationRoll.nextState;
+    mitigationRegion = REGION_META[mitigationRoll.value].key;
+  }
+  const mitigation = Math.floor(security / 10) + 3;
   next[mitigationRegion] = clamp(next[mitigationRegion] - mitigation);
   impacted.add(mitigationRegion);
 
@@ -1006,10 +1119,10 @@ export function simulateRegions(
     impactedRegions: [...impacted],
     effectiveSeverity,
     statPenalty: {
-      trust: -hotRegions - Math.floor(pressure / 30),
-      stability: -criticalRegions,
+      trust: -Math.ceil(hotRegions / 2) - Math.floor(pressure / 40),
+      stability: -Math.floor(criticalRegions / 2),
     } as Delta<StatKey>,
-    coupRiskDelta: criticalRegions * 3 + Math.floor(pressure / 18),
+    coupRiskDelta: criticalRegions * 2 + Math.floor(pressure / 30),
     summary: `${hotRegions} hot / ${criticalRegions} critical`,
     rngState: nextRng,
   };

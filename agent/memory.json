@@ -1,8 +1,224 @@
-﻿{
+{
   "version": 1,
-  "updatedAt": null,
+  "updatedAt": "2026-02-27T00:54:39.435Z",
   "activeFocusSkills": [],
   "activeFocusCommands": [],
-  "skillStats": {},
-  "runs": []
+  "skillStats": {
+    "gameplay-flow-hardening": {
+      "hits": 2,
+      "streak": 0,
+      "lastSeenAt": "2026-02-27T00:53:47.923Z"
+    },
+    "quality-gate-stabilization": {
+      "hits": 2,
+      "streak": 0,
+      "lastSeenAt": "2026-02-27T00:53:47.923Z"
+    }
+  },
+  "runs": [
+    {
+      "runId": "run-20260227004953",
+      "startedAt": "2026-02-27T00:49:53.654Z",
+      "finishedAt": "2026-02-27T00:50:07.204Z",
+      "overallStatus": "passed",
+      "regressions": [],
+      "improvements": [],
+      "recurringFailures": [],
+      "matchedSkills": [],
+      "commands": [
+        {
+          "id": "typecheck",
+          "status": "passed",
+          "durationMs": 1502,
+          "summary": "> typecheck",
+          "exitCode": 0
+        },
+        {
+          "id": "lint",
+          "status": "passed",
+          "durationMs": 2003,
+          "summary": "> lint",
+          "exitCode": 0
+        },
+        {
+          "id": "unit-tests",
+          "status": "passed",
+          "durationMs": 1287,
+          "summary": "> test",
+          "exitCode": 0
+        },
+        {
+          "id": "e2e-mobile-tapflow",
+          "status": "passed",
+          "durationMs": 8756,
+          "summary": "Running 1 test using 1 worker",
+          "exitCode": 0
+        }
+      ],
+      "reportPath": "agent/reports/run-20260227004953.md"
+    },
+    {
+      "runId": "run-20260227005107",
+      "startedAt": "2026-02-27T00:51:07.761Z",
+      "finishedAt": "2026-02-27T00:52:03.973Z",
+      "overallStatus": "failed",
+      "regressions": [
+        "e2e-mobile-tapflow"
+      ],
+      "improvements": [],
+      "recurringFailures": [],
+      "matchedSkills": [
+        {
+          "id": "gameplay-flow-hardening",
+          "title": "Gameplay Flow Hardening",
+          "hits": 1,
+          "triggeredBy": [
+            "e2e-mobile-tapflow"
+          ]
+        },
+        {
+          "id": "quality-gate-stabilization",
+          "title": "Quality Gate Stabilization",
+          "hits": 1,
+          "triggeredBy": [
+            "e2e-mobile-tapflow"
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "id": "typecheck",
+          "status": "passed",
+          "durationMs": 1440,
+          "summary": "> typecheck",
+          "exitCode": 0
+        },
+        {
+          "id": "lint",
+          "status": "passed",
+          "durationMs": 1873,
+          "summary": "> lint",
+          "exitCode": 0
+        },
+        {
+          "id": "unit-tests",
+          "status": "passed",
+          "durationMs": 1242,
+          "summary": "> test",
+          "exitCode": 0
+        },
+        {
+          "id": "e2e-mobile-tapflow",
+          "status": "failed",
+          "durationMs": 51656,
+          "summary": "Running 1 test using 1 worker",
+          "exitCode": 1
+        }
+      ],
+      "reportPath": "agent/reports/run-20260227005107.md"
+    },
+    {
+      "runId": "run-20260227005251",
+      "startedAt": "2026-02-27T00:52:51.698Z",
+      "finishedAt": "2026-02-27T00:53:47.923Z",
+      "overallStatus": "failed",
+      "regressions": [],
+      "improvements": [],
+      "recurringFailures": [
+        "e2e-mobile-tapflow"
+      ],
+      "matchedSkills": [
+        {
+          "id": "gameplay-flow-hardening",
+          "title": "Gameplay Flow Hardening",
+          "hits": 1,
+          "triggeredBy": [
+            "e2e-mobile-tapflow"
+          ]
+        },
+        {
+          "id": "quality-gate-stabilization",
+          "title": "Quality Gate Stabilization",
+          "hits": 1,
+          "triggeredBy": [
+            "e2e-mobile-tapflow"
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "id": "e2e-mobile-tapflow",
+          "status": "failed",
+          "durationMs": 51724,
+          "summary": "Running 1 test using 1 worker",
+          "exitCode": 1
+        },
+        {
+          "id": "typecheck",
+          "status": "passed",
+          "durationMs": 1449,
+          "summary": "> typecheck",
+          "exitCode": 0
+        },
+        {
+          "id": "lint",
+          "status": "passed",
+          "durationMs": 1833,
+          "summary": "> lint",
+          "exitCode": 0
+        },
+        {
+          "id": "unit-tests",
+          "status": "passed",
+          "durationMs": 1216,
+          "summary": "> test",
+          "exitCode": 0
+        }
+      ],
+      "reportPath": "agent/reports/run-20260227005251.md"
+    },
+    {
+      "runId": "run-20260227005426",
+      "startedAt": "2026-02-27T00:54:26.952Z",
+      "finishedAt": "2026-02-27T00:54:39.435Z",
+      "overallStatus": "passed",
+      "regressions": [],
+      "improvements": [
+        "e2e-mobile-tapflow"
+      ],
+      "recurringFailures": [],
+      "matchedSkills": [],
+      "commands": [
+        {
+          "id": "e2e-mobile-tapflow",
+          "status": "passed",
+          "durationMs": 7807,
+          "summary": "Running 1 test using 1 worker",
+          "exitCode": 0
+        },
+        {
+          "id": "typecheck",
+          "status": "passed",
+          "durationMs": 1523,
+          "summary": "> typecheck",
+          "exitCode": 0
+        },
+        {
+          "id": "lint",
+          "status": "passed",
+          "durationMs": 1903,
+          "summary": "> lint",
+          "exitCode": 0
+        },
+        {
+          "id": "unit-tests",
+          "status": "passed",
+          "durationMs": 1249,
+          "summary": "> test",
+          "exitCode": 0
+        }
+      ],
+      "reportPath": "agent/reports/run-20260227005426.md"
+    }
+  ]
 }

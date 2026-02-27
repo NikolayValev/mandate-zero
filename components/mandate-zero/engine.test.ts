@@ -3,9 +3,14 @@ import { SCENARIOS } from "./data";
 import {
   applyActorEffects,
   applyEffectsQueueForTurn,
+  computeBaselineDrift,
+  computeMandateObjectives,
+  computePressureGain,
+  computePressureRelief,
   computeTrend,
   computeSystemCoupling,
   createInitialGame,
+  estimatePressureDelta,
   estimateActionOutcome,
   evaluateThresholdTriggers,
   isDemoSeedArray,
@@ -281,6 +286,81 @@ describe("engine simulation outputs", () => {
       1234,
     );
     expect(first).toEqual(second);
+  });
+});
+
+describe("pressure and mandate helpers", () => {
+  it("computes bounded pressure gain with stronger security mitigation", () => {
+    const lowMitigation = computePressureGain(6, 4, 2, 30);
+    const highMitigation = computePressureGain(6, 4, 2, 90);
+
+    expect(lowMitigation).toBeGreaterThanOrEqual(0);
+    expect(lowMitigation).toBeLessThanOrEqual(7);
+    expect(highMitigation).toBeGreaterThanOrEqual(0);
+    expect(highMitigation).toBeLessThanOrEqual(7);
+    expect(highMitigation).toBeLessThan(lowMitigation);
+  });
+
+  it("applies trust decay only when pressure is high enough after doctrine modifiers", () => {
+    const baseline = computeBaselineDrift(null, 20);
+    expect(baseline.treasury).toBe(-2);
+    expect(Math.abs(baseline.trust ?? 0)).toBe(0);
+    expect(computeBaselineDrift("militarist", 45).trust).toBe(-2);
+    expect(Math.abs(computeBaselineDrift("populist", 45).trust ?? 0)).toBe(0);
+  });
+
+  it("computes mandate objectives pass/fail snapshot from current game state", () => {
+    const base = createInitialGame("objective-check");
+    const allPass = computeMandateObjectives({
+      ...base,
+      stats: { stability: 55, treasury: 50, influence: 50, security: 50, trust: 45 },
+      pressure: 70,
+      coupRisk: 60,
+      regions: { north: 50, south: 48, capital: 52, industry: 49, border: 51, coast: 47 },
+    });
+    expect(allPass.passes.all).toBe(true);
+
+    const fail = computeMandateObjectives({
+      ...base,
+      stats: { stability: 30, treasury: 50, influence: 50, security: 50, trust: 20 },
+      pressure: 92,
+      coupRisk: 80,
+      regions: { north: 88, south: 84, capital: 90, industry: 80, border: 85, coast: 87 },
+    });
+    expect(fail.passes.stability).toBe(false);
+    expect(fail.passes.trust).toBe(false);
+    expect(fail.passes.pressure).toBe(false);
+    expect(fail.passes.avgStress).toBe(false);
+    expect(fail.passes.coupRisk).toBe(false);
+  });
+
+  it("estimates pressure delta with relief tags and critical-region relief rule", () => {
+    const noRelief = estimatePressureDelta({
+      scenarioSeverity: 4,
+      pressure: 60,
+      security: 50,
+      trust: 45,
+      hotRegions: 2,
+      criticalRegions: 1,
+      optionSpread: 2,
+      optionTags: [],
+    });
+    const withRelief = estimatePressureDelta({
+      scenarioSeverity: 4,
+      pressure: 60,
+      security: 50,
+      trust: 65,
+      hotRegions: 2,
+      criticalRegions: 0,
+      optionSpread: 1,
+      optionTags: ["deescalation"],
+    });
+
+    expect(noRelief.gain).toBeGreaterThanOrEqual(0);
+    expect(withRelief.relief).toBeGreaterThan(0);
+    expect(withRelief.projectedPressure).toBeLessThanOrEqual(100);
+    expect(withRelief.net).toBeLessThanOrEqual(noRelief.net);
+    expect(computePressureRelief(65, 0, ["relief"])).toBe(2);
   });
 });
 
