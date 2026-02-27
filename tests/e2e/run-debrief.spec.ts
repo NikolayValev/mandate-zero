@@ -28,6 +28,7 @@ test("end-of-run debrief renders for completed runs and supports restart", async
   const debriefCard = page.getByTestId("run-debrief-card");
   await expect(debriefCard).toBeVisible();
   await expect(debriefCard.getByText("Command authority collapsed for test validation.")).toBeVisible();
+  await expect(debriefCard.getByText("Failed objectives:")).toBeVisible();
 
   await page.getByTestId("debrief-restart").click();
   await expect(page.getByTestId("onboarding-title")).toBeVisible();

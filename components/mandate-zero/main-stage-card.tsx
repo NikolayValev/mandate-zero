@@ -103,6 +103,32 @@ export function MainStageCard({
   onResolveCrisisOption,
 }: MainStageCardProps) {
   const mandateObjectives = computeMandateObjectives(game);
+  const mandateLabels =
+    language === "bg"
+      ? {
+          title: "Цели за мандата",
+          onTrack: "В норма",
+          atRisk: "Риск",
+          stability: "Стабилност",
+          trust: "Доверие",
+          pressure: "Натиск",
+          avgStress: "Среден стрес",
+          coupRisk: "Риск от преврат",
+          projectedPressure: "Проекция за натиск",
+          to: "до",
+        }
+      : {
+          title: "Mandate Targets",
+          onTrack: "On Track",
+          atRisk: "At Risk",
+          stability: "Stability",
+          trust: "Trust",
+          pressure: "Pressure",
+          avgStress: "Avg Stress",
+          coupRisk: "Coup Risk",
+          projectedPressure: "Projected pressure",
+          to: "to",
+        };
   const pressureState = toPressureState(game.pressure);
   const pressureTrend = computeTrend(game.systemHistory.map((snapshot) => snapshot.pressure));
   const pressureTone =
@@ -130,7 +156,7 @@ export function MainStageCard({
               {language === "bg" ? "Етап" : "Stage"} {getTurnStageLabel(game.turnStage, language)}
             </span>
             <span data-testid="pressure-label">
-              {language === "bg" ? "Натиск" : "Pressure"} {getPressureLabel(pressureState.label, language)} {pressureArrow}
+              {mandateLabels.pressure} {getPressureLabel(pressureState.label, language)} {pressureArrow}
               {showDebugNumbers ? ` (${game.pressure})` : ""}
             </span>
           </div>
@@ -139,7 +165,7 @@ export function MainStageCard({
           </div>
           {pressureTrend.momentum ? (
             <p className="mt-1 text-[10px] text-muted-foreground">
-              {language === "bg" ? "Натиск" : "Pressure"}{" "}
+              {mandateLabels.pressure}{" "}
               {language === "bg" ? "ускорява се" : pressureTrend.momentum}
             </p>
           ) : null}
@@ -173,7 +199,7 @@ export function MainStageCard({
               variant={game.coupRisk >= 70 ? "destructive" : "outline"}
               className="hidden sm:inline-flex"
             >
-              {language === "bg" ? "Риск от преврат" : "Coup Risk"} {game.coupRisk}
+              {mandateLabels.coupRisk} {game.coupRisk}
             </Badge>
             <Badge variant={game.coupRisk >= 70 ? "destructive" : "outline"} className="sm:hidden">
               Coup Risk
@@ -228,48 +254,53 @@ export function MainStageCard({
               </p>
             </div>
 
-            <div className="rounded-lg border p-4">
+            <div data-testid="mandate-targets-card" className="rounded-lg border p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {language === "bg" ? "Ð¦ÐµÐ»Ð¸ Ð·Ð° Ð¼Ð°Ð½Ð´Ð°Ñ‚Ð°" : "Mandate Targets"}
-                </p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{mandateLabels.title}</p>
                 <Badge variant={mandateObjectives.passes.all ? "default" : "secondary"}>
-                  {mandateObjectives.passes.all
-                    ? language === "bg"
-                      ? "Ð’ Ð½Ð¾Ñ€Ð¼Ð°"
-                      : "On Track"
-                    : language === "bg"
-                      ? "Ð Ð¸ÑÐº"
-                      : "At Risk"}
+                  {mandateObjectives.passes.all ? mandateLabels.onTrack : mandateLabels.atRisk}
                 </Badge>
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{language === "bg" ? "Ð¡Ñ‚Ð°Ð±Ð¸Ð»Ð½Ð¾ÑÑ‚" : "Stability"} &gt;= {mandateObjectives.stabilityTarget}</span>
+                <div data-testid="mandate-target-stability" className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {mandateLabels.stability} &gt;= {mandateObjectives.stabilityTarget}
+                  </span>
                   <Badge variant={mandateObjectives.passes.stability ? "outline" : "destructive"}>
                     {mandateObjectives.passes.stability ? "PASS" : "FAIL"}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{language === "bg" ? "Ð”Ð¾Ð²ÐµÑ€Ð¸Ðµ" : "Trust"} &gt;= {mandateObjectives.trustTarget}</span>
+                <div data-testid="mandate-target-trust" className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {mandateLabels.trust} &gt;= {mandateObjectives.trustTarget}
+                  </span>
                   <Badge variant={mandateObjectives.passes.trust ? "outline" : "destructive"}>
                     {mandateObjectives.passes.trust ? "PASS" : "FAIL"}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{language === "bg" ? "ÐÐ°Ñ‚Ð¸ÑÐº" : "Pressure"} &lt; {mandateObjectives.pressureCap}</span>
+                <div data-testid="mandate-target-pressure" className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {mandateLabels.pressure} &lt; {mandateObjectives.pressureCap}
+                  </span>
                   <Badge variant={mandateObjectives.passes.pressure ? "outline" : "destructive"}>
                     {mandateObjectives.passes.pressure ? "PASS" : "FAIL"}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{language === "bg" ? "Ð¡Ñ€ÐµÐ´ÐµÐ½ ÑÑ‚Ñ€ÐµÑ" : "Avg Stress"} &lt; {mandateObjectives.avgStressCap}</span>
+                <div data-testid="mandate-target-avg-stress" className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {mandateLabels.avgStress} &lt; {mandateObjectives.avgStressCap}
+                  </span>
                   <Badge variant={mandateObjectives.passes.avgStress ? "outline" : "destructive"}>
                     {mandateObjectives.passes.avgStress ? "PASS" : "FAIL"}
                   </Badge>
                 </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground sm:col-span-2">
-                  <span>{language === "bg" ? "Ð Ð¸ÑÐº Ð¾Ñ‚ Ð¿Ñ€ÐµÐ²Ñ€Ð°Ñ‚" : "Coup Risk"} &lt; {mandateObjectives.coupRiskCap}</span>
+                <div
+                  data-testid="mandate-target-coup-risk"
+                  className="flex items-center justify-between text-xs text-muted-foreground sm:col-span-2"
+                >
+                  <span>
+                    {mandateLabels.coupRisk} &lt; {mandateObjectives.coupRiskCap}
+                  </span>
                   <Badge variant={mandateObjectives.passes.coupRisk ? "outline" : "destructive"}>
                     {mandateObjectives.passes.coupRisk ? "PASS" : "FAIL"}
                   </Badge>
@@ -351,7 +382,7 @@ export function MainStageCard({
                       {language === "bg" ? "Прогнозен ефект: неутрален" : "Estimated impact: neutral"}
                     </p>
                   ) : null}
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p data-testid={`pressure-projection-${option.id}`} className="mt-1 text-xs text-muted-foreground">
                     {(() => {
                       const projection = estimatePressureDelta({
                         scenarioSeverity: scenario.severity,
@@ -365,9 +396,9 @@ export function MainStageCard({
                       });
                       return (
                         <>
-                          {language === "bg" ? "Projected pressure:" : "Projected pressure:"}{" "}
+                          {mandateLabels.projectedPressure}:{" "}
                           {projection.net > 0 ? `+${projection.net}` : projection.net}{" "}
-                          ({language === "bg" ? "to" : "to"} {projection.projectedPressure})
+                          ({mandateLabels.to} {projection.projectedPressure})
                         </>
                       );
                     })()}
@@ -409,3 +440,4 @@ export function MainStageCard({
     </Card>
   );
 }
+
